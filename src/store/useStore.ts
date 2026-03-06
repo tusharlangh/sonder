@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 
-export type ArtStyle = 'classic' | 'braille' | 'halftone' | 'dotcross' | 'line';
-export type SourceMode = 'scenes' | 'templates' | 'image' | 'text';
+export type ArtStyle = 'classic';
+export type FXPreset = 'none' | 'noise' | 'field' | 'intervals' | 'beam sweep' | 'glitch' | 'CRT monitor' | 'matrix rain';
+export type SourceMode = 'scenes' | 'templates' | 'image' | 'video' | 'text' | 'camera';
 
 interface AppState {
   // Source toggle
@@ -11,6 +12,10 @@ interface AppState {
   // Art style
   artStyle: ArtStyle;
   setArtStyle: (val: ArtStyle) => void;
+
+  // FX Preset
+  fxPreset: FXPreset;
+  setFxPreset: (val: FXPreset) => void;
 
   // Controller sliders
   brightness: number;
@@ -44,6 +49,10 @@ interface AppState {
   uploadedImage: string | null;
   setUploadedImage: (val: string | null) => void;
 
+  // Uploaded video (blob URL)
+  uploadedVideo: string | null;
+  setUploadedVideo: (val: string | null) => void;
+
   // Controls panel visibility
   controlsVisible: boolean;
   setControlsVisible: (val: boolean) => void;
@@ -63,6 +72,20 @@ interface AppState {
   // Background color
   backgroundColor: string;
   setBackgroundColor: (val: string) => void;
+
+  // Dual-Layer Settings
+  asciiOpacity: number;
+  setAsciiOpacity: (val: number) => void;
+  asciiDensity: number;
+  setAsciiDensity: (val: number) => void;
+  imageVisibility: number;
+  setImageVisibility: (val: number) => void;
+  characterRamp: number;
+  setCharacterRamp: (val: number) => void;
+
+  // Post-processing
+  bloomStrength: number;
+  setBloomStrength: (val: number) => void;
 }
 
 export const useStore = create<AppState>((set) => ({
@@ -71,6 +94,9 @@ export const useStore = create<AppState>((set) => ({
 
   artStyle: 'classic',
   setArtStyle: (val) => set({ artStyle: val }),
+
+  fxPreset: 'none',
+  setFxPreset: (val) => set({ fxPreset: val }),
 
   brightness: 1.2,
   setBrightness: (val) => set({ brightness: val }),
@@ -95,6 +121,9 @@ export const useStore = create<AppState>((set) => ({
   uploadedImage: null,
   setUploadedImage: (val) => set({ uploadedImage: val }),
 
+  uploadedVideo: null,
+  setUploadedVideo: (val) => set({ uploadedVideo: val }),
+
   controlsVisible: true,
   setControlsVisible: (val) => set({ controlsVisible: val }),
 
@@ -109,4 +138,16 @@ export const useStore = create<AppState>((set) => ({
 
   backgroundColor: '#000000',
   setBackgroundColor: (val) => set({ backgroundColor: val }),
+
+  asciiOpacity: 0.8,
+  setAsciiOpacity: (val) => set({ asciiOpacity: val }),
+  asciiDensity: 1.0,
+  setAsciiDensity: (val) => set({ asciiDensity: val }),
+  imageVisibility: 0.5,
+  setImageVisibility: (val) => set({ imageVisibility: val }),
+  characterRamp: 1.0,
+  setCharacterRamp: (val) => set({ characterRamp: val }),
+  
+  bloomStrength: 0.5, // Default glowing effect
+  setBloomStrength: (val) => set({ bloomStrength: val }),
 }));

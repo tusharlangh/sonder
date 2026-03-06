@@ -34,6 +34,10 @@ const GALLERY_ITEMS: GalleryItem[] = [
   { id: 'scene-aurora', emoji: '🌌', label: 'Aurora', category: 'scenes', sceneIndex: 9 },
   { id: 'scene-rainstorm', emoji: '⛈️', label: 'Rainstorm', category: 'scenes', sceneIndex: 10 },
   { id: 'scene-desert', emoji: '🏜️', label: 'Desert', category: 'scenes', sceneIndex: 11 },
+  { id: 'scene-blackhole', emoji: '🕳️', label: 'Black Hole', category: 'scenes', sceneIndex: 12 },
+  { id: 'scene-earth', emoji: '🌍', label: 'Earth', category: 'scenes', sceneIndex: 13 },
+  { id: 'scene-mars', emoji: '🔴', label: 'Mars', category: 'scenes', sceneIndex: 14 },
+  { id: 'scene-gasgiant', emoji: '🪐', label: 'Gas Giant', category: 'scenes', sceneIndex: 15 },
   // Emojis / Templates
   { id: 'cat', emoji: '🐱', label: 'Cat', category: 'emojis' },
   { id: 'dog', emoji: '🐶', label: 'Dog', category: 'emojis' },

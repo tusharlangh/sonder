@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
-import { useStore, type ArtStyle, type SourceMode } from '../store/useStore';
+import React, { useState, useCallback, useRef } from 'react';
+import { useStore, type ArtStyle, type SourceMode, type FXPreset } from '../store/useStore';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, Grid, ChevronDown } from 'lucide-react';
+import { Menu, Grid, ChevronDown, Video } from 'lucide-react';
 import { TemplateModal } from './TemplateModal';
 
 /* ─── Black & White palette ─── */
@@ -18,6 +18,7 @@ export const Controls: React.FC = () => {
   const {
     sourceMode, setSourceMode,
     artStyle, setArtStyle,
+    fxPreset, setFxPreset,
     brightness, setBrightness,
     contrast, setContrast,
     noise, setNoise,
@@ -27,14 +28,22 @@ export const Controls: React.FC = () => {
     activeScene, setActiveScene,
     activeTemplate, setActiveTemplate,
     uploadedImage, setUploadedImage,
+    uploadedVideo, setUploadedVideo,
     controlsVisible, setControlsVisible,
     setIsTemplateModalOpen,
     customText, setCustomText,
     customFont, setCustomFont,
     backgroundColor, setBackgroundColor,
+    asciiOpacity, setAsciiOpacity,
+    asciiDensity, setAsciiDensity,
+    imageVisibility, setImageVisibility,
+    characterRamp, setCharacterRamp,
+    bloomStrength, setBloomStrength,
   } = useStore();
 
   const [openSection, setOpenSection] = useState<string>('gallery');
+  const [isRecording, setIsRecording] = useState(false);
+  const recorderRef = useRef<any>(null);
 
   const scenes = [
     { label: 'SCULPTURE', index: 0 },
@@ -53,34 +62,55 @@ export const Controls: React.FC = () => {
 
   const artStyles: Array<{ key: ArtStyle; label: string }> = [
     { key: 'classic', label: 'CLASSIC' },
-    { key: 'braille', label: 'BRAILLE' },
-    { key: 'halftone', label: 'HALFTONE' },
-    { key: 'dotcross', label: 'DOTCROSS' },
-    { key: 'line', label: 'LINE' },
+  ];
+
+  const fxPresets: Array<{ key: FXPreset; label: string }> = [
+    { key: 'none', label: 'NONE' },
+    { key: 'noise', label: 'NOISE' },
+    { key: 'field', label: 'FIELD' },
+    { key: 'intervals', label: 'INTERVALS' },
+    { key: 'beam sweep', label: 'BEAM SWEEP' },
+    { key: 'glitch', label: 'GLITCH' },
+    { key: 'CRT monitor', label: 'CRT MONITOR' },
+    { key: 'matrix rain', label: 'MATRIX RAIN' },
   ];
 
   const handleImageUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      setUploadedImage(ev.target?.result as string);
-      setSourceMode('image');
-    };
-    reader.readAsDataURL(file);
-  }, [setUploadedImage, setSourceMode]);
+    
+    if (file.type.startsWith('video/')) {
+      const url = URL.createObjectURL(file);
+      setUploadedVideo(url);
+      setSourceMode('video');
+    } else if (file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        setUploadedImage(ev.target?.result as string);
+        setSourceMode('image');
+      };
+      reader.readAsDataURL(file);
+    }
+  }, [setUploadedImage, setUploadedVideo, setSourceMode]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     const file = e.dataTransfer.files[0];
-    if (!file || !file.type.startsWith('image/')) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      setUploadedImage(ev.target?.result as string);
-      setSourceMode('image');
-    };
-    reader.readAsDataURL(file);
-  }, [setUploadedImage, setSourceMode]);
+    if (!file) return;
+    
+    if (file.type.startsWith('video/')) {
+      const url = URL.createObjectURL(file);
+      setUploadedVideo(url);
+      setSourceMode('video');
+    } else if (file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        setUploadedImage(ev.target?.result as string);
+        setSourceMode('image');
+      };
+      reader.readAsDataURL(file);
+    }
+  }, [setUploadedImage, setUploadedVideo, setSourceMode]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => e.preventDefault(), []);
 
@@ -89,6 +119,45 @@ export const Controls: React.FC = () => {
     setSourceMode('scenes');
     setArtStyle(artStyles[Math.floor(Math.random() * artStyles.length)].key);
     setOpenSection('gallery');
+  };
+
+  const handleExport = async () => {
+    const canvas = document.querySelector('canvas');
+    if (!canvas) return;
+
+    if (isRecording) {
+      // Stop recording
+      if (recorderRef.current) {
+        recorderRef.current.stopRecording(() => {
+          const blob = recorderRef.current!.getBlob();
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = `sonder-animation-${Date.now()}.gif`;
+          link.click();
+          recorderRef.current!.destroy();
+          recorderRef.current = null;
+        });
+      }
+      setIsRecording(false);
+    } else {
+      // Start recording a GIF
+      const { default: RecordRTC } = await import('recordrtc');
+      
+      // Ensure canvas is captured at 30fps
+      const stream = canvas.captureStream(30);
+      recorderRef.current = new RecordRTC(stream, {
+        type: 'gif',
+        frameRate: 30,
+        canvas: {
+          width: canvas.width / 2,
+          height: canvas.height / 2
+        }
+      });
+      
+      recorderRef.current.startRecording();
+      setIsRecording(true);
+    }
   };
 
   const gridItemStyle = (isActive: boolean): React.CSSProperties => ({
@@ -254,7 +323,7 @@ export const Controls: React.FC = () => {
               </button>
             </AccordionItem>
 
-            <AccordionItem title="IMAGE" id="image" openSection={openSection} setOpenSection={setOpenSection} sourceMode={sourceMode}>
+            <AccordionItem title="MEDIA" id="image" openSection={openSection} setOpenSection={setOpenSection} sourceMode={sourceMode}>
               <div
                 onDrop={handleDrop}
                 onDragOver={handleDragOver}
@@ -277,19 +346,62 @@ export const Controls: React.FC = () => {
                   e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)';
                 }}
               >
-                {uploadedImage ? (
+                {(uploadedImage && sourceMode === 'image') || (uploadedVideo && sourceMode === 'video') ? (
                   <div style={{ textAlign: 'center', width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    <img src={uploadedImage} alt="Uploaded" style={{ flex: 1, minHeight: 0, objectFit: 'contain', borderRadius: '8px', marginBottom: '8px' }} />
+                    {sourceMode === 'image' ? (
+                      <img src={uploadedImage!} alt="Uploaded" style={{ flex: 1, minHeight: 0, objectFit: 'contain', borderRadius: '8px', marginBottom: '8px' }} />
+                    ) : (
+                      <video src={uploadedVideo!} style={{ flex: 1, minHeight: 0, objectFit: 'contain', borderRadius: '8px', marginBottom: '8px' }} />
+                    )}
                     <p style={{ fontSize: '8px', letterSpacing: '0.12em', color: 'rgba(255,255,255,0.4)', margin: 0, fontWeight: 500 }}>CLICK TO REPLACE</p>
                   </div>
                 ) : (
                   <>
-                    <p style={{ fontSize: '10px', letterSpacing: '0.15em', color: 'rgba(255,255,255,0.5)', margin: '0 0 4px 0', fontWeight: 500 }}>DROP IMAGE</p>
-                    <p style={{ fontSize: '9px', color: 'rgba(255,255,255,0.25)', margin: 0, letterSpacing: '0.1em' }}>OR BROWSE</p>
+                    <p style={{ fontSize: '10px', letterSpacing: '0.15em', color: 'rgba(255,255,255,0.5)', margin: '0 0 4px 0', fontWeight: 500 }}>DROP MEDIA</p>
+                    <p style={{ fontSize: '9px', color: 'rgba(255,255,255,0.25)', margin: 0, letterSpacing: '0.1em' }}>IMAGE OR VIDEO</p>
                   </>
                 )}
-                <input id="sidebar-file-upload" type="file" accept="image/*" onChange={handleImageUpload} style={{ display: 'none' }} />
+                <input id="sidebar-file-upload" type="file" accept="image/*,video/*" onChange={handleImageUpload} style={{ display: 'none' }} />
               </div>
+            </AccordionItem>
+
+            <AccordionItem title="WEBCAM" id="webcam" openSection={openSection} setOpenSection={setOpenSection} sourceMode={sourceMode}>
+              <button
+                onClick={() => setSourceMode('camera')}
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  background: sourceMode === 'camera' ? ACCENT_10 : 'rgba(255,255,255,0.02)',
+                  border: `1px solid ${sourceMode === 'camera' ? ACCENT_40 : 'rgba(255,255,255,0.06)'}`,
+                  borderRadius: '12px',
+                  padding: '16px',
+                  color: sourceMode === 'camera' ? ACCENT : 'rgba(255,255,255,0.6)',
+                  cursor: 'pointer',
+                  transition: 'all 0.25s',
+                  fontSize: '10px',
+                  letterSpacing: '0.2em',
+                  fontFamily: "'Manrope', sans-serif",
+                  fontWeight: 500,
+                }}
+                onMouseEnter={(e) => {
+                  if (sourceMode !== 'camera') {
+                    e.currentTarget.style.background = ACCENT_05;
+                    e.currentTarget.style.borderColor = ACCENT_20;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (sourceMode !== 'camera') {
+                    e.currentTarget.style.background = 'rgba(255,255,255,0.02)';
+                    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)';
+                  }
+                }}
+              >
+                <Video size={14} />
+                {sourceMode === 'camera' ? 'CAMERA ACTIVE' : 'START LIVE FEED'}
+              </button>
             </AccordionItem>
 
             <AccordionItem title="TEXT" id="text" openSection={openSection} setOpenSection={setOpenSection} sourceMode={sourceMode}>
@@ -397,6 +509,136 @@ export const Controls: React.FC = () => {
               </div>
             </AccordionItem>
 
+            <AccordionItem title="FX PRESETS" id="fxPresets" openSection={openSection} setOpenSection={setOpenSection} sourceMode={sourceMode}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                {fxPresets.map((s) => {
+                  const isActive = fxPreset === s.key;
+                  return (
+                    <button 
+                      key={s.key} 
+                      onClick={() => setFxPreset(s.key)} 
+                      style={{
+                        background: isActive ? ACCENT_10 : 'rgba(255,255,255,0.02)',
+                        border: `1px solid ${isActive ? ACCENT_40 : 'rgba(255,255,255,0.05)'}`,
+                        borderBottom: isActive ? `2px solid ${ACCENT_70}` : `1px solid ${isActive ? ACCENT_40 : 'rgba(255,255,255,0.05)'}`,
+                        borderRadius: '12px', padding: '12px 4px',
+                        color: isActive ? ACCENT : 'rgba(255,255,255,0.5)',
+                        fontSize: '9px', letterSpacing: '0.15em', cursor: 'pointer', transition: 'all 0.25s',
+                        fontFamily: "'Manrope', sans-serif", fontWeight: isActive ? 600 : 400,
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isActive) {
+                          e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
+                          e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isActive) {
+                          e.currentTarget.style.background = 'rgba(255,255,255,0.02)';
+                          e.currentTarget.style.borderColor = 'rgba(255,255,255,0.05)';
+                        }
+                      }}
+                    >
+                      {s.label}
+                    </button>
+                  )
+                })}
+              </div>
+            </AccordionItem>
+
+            <AccordionItem title="PRO PRESETS" id="proPresets" openSection={openSection} setOpenSection={setOpenSection} sourceMode={sourceMode}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '8px' }}>
+                {[
+                  {
+                    label: 'CINEMATIC RGB',
+                    apply: () => {
+                      setBackgroundColor('#050505');
+                      setColorMode(true);
+                      setBrightness(1.1);
+                      setContrast(1.3);
+                      setFxPreset('CRT monitor');
+                      setBloomStrength(0.8);
+                      setDithering(0.2);
+                      setCharacterRamp(1.2);
+                      setAsciiOpacity(0.95);
+                      setAsciiDensity(1.1);
+                    }
+                  },
+                  {
+                    label: 'MONOCHROME FINE',
+                    apply: () => {
+                      setBackgroundColor('#000000');
+                      setColorMode(false);
+                      setBrightness(1.0);
+                      setContrast(1.5);
+                      setFxPreset('none');
+                      setBloomStrength(0.0);
+                      setDithering(0.5);
+                      setCharacterRamp(2.0);
+                      setAsciiOpacity(1.0);
+                      setAsciiDensity(2.0);
+                    }
+                  },
+                  {
+                    label: 'LUCID DREAM',
+                    apply: () => {
+                      setBackgroundColor('#020005');
+                      setColorMode(true);
+                      setBrightness(1.3);
+                      setContrast(1.4);
+                      setFxPreset('none');
+                      setBloomStrength(1.8);
+                      setDithering(0.0);
+                      setCharacterRamp(1.0);
+                      setAsciiOpacity(1.0);
+                      setAsciiDensity(1.0);
+                    }
+                  },
+                  {
+                    label: 'RAW CONTRAST',
+                    apply: () => {
+                      setBackgroundColor('#000000');
+                      setColorMode(false);
+                      setBrightness(0.8);
+                      setContrast(2.5);
+                      setFxPreset('noise');
+                      setBloomStrength(0.3);
+                      setDithering(1.2);
+                      setCharacterRamp(0.8);
+                      setAsciiOpacity(1.0);
+                      setAsciiDensity(1.3);
+                    }
+                  }
+                ].map((preset) => (
+                  <button
+                    key={preset.label}
+                    onClick={preset.apply}
+                    style={{
+                      background: 'rgba(255,255,255,0.02)',
+                      border: `1px solid rgba(255,255,255,0.05)`,
+                      borderRadius: '12px', padding: '14px 12px',
+                      color: 'rgba(255,255,255,0.8)',
+                      fontSize: '10px', letterSpacing: '0.2em', cursor: 'pointer', transition: 'all 0.25s',
+                      fontFamily: "'Manrope', sans-serif", fontWeight: 600,
+                      textAlign: 'center',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = ACCENT_10;
+                      e.currentTarget.style.borderColor = ACCENT_40;
+                      e.currentTarget.style.color = '#FFF';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'rgba(255,255,255,0.02)';
+                      e.currentTarget.style.borderColor = 'rgba(255,255,255,0.05)';
+                      e.currentTarget.style.color = 'rgba(255,255,255,0.8)';
+                    }}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
+            </AccordionItem>
+
             <AccordionItem title="CONTROLLER" id="controller" openSection={openSection} setOpenSection={setOpenSection} sourceMode={sourceMode}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.04)' }}>
                 <SliderControl label="RESOLUTION" value={resolution} min={1} max={100} step={1} onChange={setResolution} />
@@ -477,8 +719,12 @@ export const Controls: React.FC = () => {
 
                 <SliderControl label="BRIGHTNESS" value={brightness} min={0} max={4} step={0.01} onChange={setBrightness} />
                 <SliderControl label="CONTRAST" value={contrast} min={0} max={4} step={0.01} onChange={setContrast} />
+                <SliderControl label="GLOW (BLOOM)" value={bloomStrength} min={0} max={3} step={0.01} onChange={setBloomStrength} />
+                <SliderControl label="IMAGE VISIBILITY" value={imageVisibility} min={0} max={1} step={0.01} onChange={setImageVisibility} />
+                <SliderControl label="ASCII OPACITY" value={asciiOpacity} min={0} max={1} step={0.01} onChange={setAsciiOpacity} />
+                <SliderControl label="ASCII DENSITY" value={asciiDensity} min={0.1} max={2} step={0.01} onChange={setAsciiDensity} />
+                <SliderControl label="CHAR RAMP" value={characterRamp} min={0.1} max={3} step={0.01} onChange={setCharacterRamp} />
                 <SliderControl label="DITHERING" value={dithering} min={0} max={2} step={0.01} onChange={setDithering} />
-                <SliderControl label="NOISE" value={noise} min={0} max={2} step={0.01} onChange={setNoise} />
                 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px', paddingTop: '14px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
                   <span style={{ fontSize: '9px', letterSpacing: '0.12em', color: 'rgba(255,255,255,0.5)', fontWeight: 500 }}>COLOR MODE</span>
@@ -539,12 +785,13 @@ export const Controls: React.FC = () => {
               </button>
               {/* Secondary — outlined ghost */}
               <button
+                onClick={handleExport}
                 style={{
                   flex: 1,
-                  background: 'transparent',
-                  border: `1px solid ${ACCENT_40}`,
+                  background: isRecording ? 'rgba(255,50,50,0.2)' : 'transparent',
+                  border: `1px solid ${isRecording ? 'rgba(255,50,50,0.8)' : ACCENT_40}`,
                   borderRadius: '999px',
-                  color: ACCENT,
+                  color: isRecording ? '#ffb3b3' : ACCENT,
                   fontSize: '10px',
                   fontFamily: "'Manrope', sans-serif",
                   fontWeight: 600,
@@ -553,19 +800,42 @@ export const Controls: React.FC = () => {
                   padding: '14px',
                   cursor: 'pointer',
                   transition: 'all 0.25s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
                 }}
                 onMouseEnter={(e) => { 
-                  e.currentTarget.style.background = ACCENT_10; 
-                  e.currentTarget.style.borderColor = ACCENT_70;
+                  if (!isRecording) {
+                    e.currentTarget.style.background = ACCENT_10; 
+                    e.currentTarget.style.borderColor = ACCENT_70;
+                  }
                 }}
                 onMouseLeave={(e) => { 
-                  e.currentTarget.style.background = 'transparent'; 
-                  e.currentTarget.style.borderColor = ACCENT_40;
+                  if (!isRecording) {
+                    e.currentTarget.style.background = 'transparent'; 
+                    e.currentTarget.style.borderColor = ACCENT_40;
+                  }
                 }}
               >
-                EXPORT
+                {isRecording ? (
+                  <>
+                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#ff4444', animation: 'pulse 1s infinite' }} />
+                    STOP
+                  </>
+                ) : (
+                  'EXPORT GIF'
+                )}
               </button>
             </div>
+            {/* CSS Animation for the recording pulse */}
+            <style>{`
+              @keyframes pulse {
+                0% { opacity: 1; transform: scale(1); }
+                50% { opacity: 0.5; transform: scale(0.8); }
+                100% { opacity: 1; transform: scale(1); }
+              }
+            `}</style>
             <div style={{ textAlign: 'center', fontSize: '9px', color: 'rgba(255,255,255,0.2)', letterSpacing: '0.15em', fontWeight: 400 }}>
               © SONDER {new Date().getFullYear()}
             </div>
@@ -599,7 +869,7 @@ const AccordionItem = ({
   const isOpen = openSection === id;
 
   // For scenes, templates, image we highlight title if it's the active sourceMode
-  const isSourceActive = (id === 'gallery' && (sourceMode === 'scenes' || sourceMode === 'templates')) || (id === 'image' && sourceMode === 'image') || (id === 'text' && sourceMode === 'text');
+  const isSourceActive = (id === 'gallery' && (sourceMode === 'scenes' || sourceMode === 'templates')) || (id === 'image' && (sourceMode === 'image' || sourceMode === 'video')) || (id === 'text' && sourceMode === 'text') || (id === 'webcam' && sourceMode === 'camera');
 
   return (
     <div style={{ 

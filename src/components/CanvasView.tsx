@@ -5,34 +5,56 @@ import { AsciiRenderer } from '../graphics/AsciiRenderer';
 import { SceneManager } from '../graphics/SceneManager';
 import { useStore } from '../store/useStore';
 
-const ART_STYLE_MAP: Record<string, number> = {
-  classic: 0,
-  braille: 1,
-  halftone: 2,
-  dotcross: 3,
-  line: 4,
-};
+
 
 export const CanvasView: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<AsciiRenderer | null>(null);
   const sceneManagerRef = useRef<SceneManager | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const uploadedVideoRef = useRef<HTMLVideoElement | null>(null);
+
+  useEffect(() => {
+    const cameraVideo = document.createElement('video');
+    cameraVideo.autoplay = true;
+    cameraVideo.playsInline = true;
+    cameraVideo.muted = true;
+    videoRef.current = cameraVideo;
+
+    const fileVideo = document.createElement('video');
+    fileVideo.autoplay = true;
+    fileVideo.loop = true;
+    fileVideo.playsInline = true;
+    fileVideo.muted = true;
+    uploadedVideoRef.current = fileVideo;
+
+    return () => {
+      cameraVideo.srcObject = null;
+      fileVideo.src = '';
+    };
+  }, []);
+
 
   const {
     resolution,
     brightness,
     contrast,
     colorMode,
-    artStyle,
-    noise,
+    fxPreset,
     dithering,
     activeScene,
     activeTemplate,
     sourceMode,
     uploadedImage,
+    uploadedVideo,
     customText,
     customFont,
     backgroundColor,
+    asciiOpacity,
+    asciiDensity,
+    imageVisibility,
+    characterRamp,
+    bloomStrength,
   } = useStore();
 
   useEffect(() => {
@@ -70,13 +92,17 @@ export const CanvasView: React.FC = () => {
         brightness,
         contrast,
         colorMode,
-        artStyle: ART_STYLE_MAP[artStyle] ?? 0,
-        noise,
+        fxPreset,
         dithering,
         bgColor: backgroundColor,
+        asciiOpacity,
+        asciiDensity,
+        imageVisibility,
+        characterRamp,
+        bloomStrength,
       });
     }
-  }, [resolution, brightness, contrast, colorMode, artStyle, noise, dithering, backgroundColor]);
+  }, [resolution, brightness, contrast, colorMode, fxPreset, dithering, backgroundColor, asciiOpacity, asciiDensity, imageVisibility, characterRamp, bloomStrength]);
 
   // Update active scene
   useEffect(() => {
@@ -101,13 +127,55 @@ export const CanvasView: React.FC = () => {
     if (rendererRef.current) {
       if (sourceMode === 'image' && uploadedImage) {
         rendererRef.current.setImageSource(uploadedImage);
-      } else if (sourceMode === 'text') {
-        // Don't clear here — text effect handles its own rendering
+      } else if (sourceMode === 'text' || sourceMode === 'camera' || sourceMode === 'video') {
+        // Handled by their respective hooks
       } else {
         rendererRef.current.setImageSource(null);
       }
     }
   }, [uploadedImage, sourceMode]);
+
+  // Uploaded Video source
+  useEffect(() => {
+    if (!rendererRef.current) return;
+    const fileVideo = uploadedVideoRef.current;
+    if (!fileVideo) return;
+
+    if (sourceMode === 'video' && uploadedVideo) {
+      fileVideo.src = uploadedVideo;
+      fileVideo.play().catch(console.error);
+      rendererRef.current.setVideoSource(fileVideo, false);
+    } else if (sourceMode === 'video' && !uploadedVideo) {
+      rendererRef.current.setVideoSource(null, false);
+    } else {
+      fileVideo.pause();
+    }
+  }, [uploadedVideo, sourceMode]);
+
+  // Camera source
+  useEffect(() => {
+    if (!rendererRef.current) return;
+    const video = videoRef.current;
+    if (!video) return;
+
+    if (sourceMode === 'camera') {
+      navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 1280 }, height: { ideal: 720 } } })
+        .then((stream) => {
+          video.srcObject = stream;
+          video.play();
+          rendererRef.current?.setVideoSource(video, true);
+        })
+        .catch((err) => {
+          console.error('Error accessing webcam:', err);
+        });
+    } else {
+      if (video.srcObject) {
+        const stream = video.srcObject as MediaStream;
+        stream.getTracks().forEach((track) => track.stop());
+        video.srcObject = null;
+      }
+    }
+  }, [sourceMode]);
 
   // Text source — render text to an offscreen canvas and feed as image
   useEffect(() => {

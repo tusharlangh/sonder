@@ -75,6 +75,10 @@ export class SceneManager {
       case 9: this.buildAurora(); break;
       case 10: this.buildRainstorm(); break;
       case 11: this.buildDesert(); break;
+      case 12: this.buildBlackHole(); break;
+      case 13: this.buildEarth(); break;
+      case 14: this.buildMars(); break;
+      case 15: this.buildGasGiant(); break;
       default: this.buildSculpture(); break;
     }
   }
@@ -1111,6 +1115,457 @@ export class SceneManager {
         col=mix(col,vec3(0.85,0.78,0.6),hazeMask*shimmer*0.15);
 
         gl_FragColor=vec4(col,1.0);
+      }
+    `);
+  }
+
+  // ─── Scene 12: Abstract Black Hole ───
+  private buildBlackHole() {
+    this.create2DShaderScene(`
+      uniform float uTime;
+      uniform vec2 uResolution;
+      varying vec2 vUv;
+
+      mat2 rot(float a) {
+        float s = sin(a), c = cos(a);
+        return mat2(c, -s, s, c);
+      }
+
+      void main(){
+        vec2 uv = vUv;
+        float ar = uResolution.x / uResolution.y;
+        uv.x = (uv.x - 0.5) * ar + 0.5;
+        vec2 p = uv - 0.5;
+
+        // Apply severe gravitational lensing distortion
+        float d = length(p);
+        float rEventHorizon = 0.15;
+        
+        // Bend light around the event horizon
+        if(d > rEventHorizon * 0.9) {
+          float distortion = 1.0 - (rEventHorizon * 0.5) / d;
+          p *= distortion;
+        }
+
+        d = length(p);
+
+        // Core Black Hole (Event Horizon)
+        float blackHole = smoothstep(rEventHorizon + 0.01, rEventHorizon, d);
+
+        // Accretion Disk
+        // Tilt the plane to view the disk at an angle
+        vec3 rd = normalize(vec3(p, 1.0));
+        vec3 ro = vec3(0.0, 0.5, -2.5);
+        
+        // Define disk plane
+        vec3 n = normalize(vec3(0.0, 1.0, 0.4));
+        float t = -dot(ro, n) / dot(rd, n);
+        vec3 hit = ro + rd * t;
+        
+        float diskCol = 0.0;
+        vec3 glowCol = vec3(0.0);
+
+        if(t > 0.0) {
+          float distToCenter = length(hit);
+          if(distToCenter > rEventHorizon * 1.5 && distToCenter < rEventHorizon * 6.0) {
+            float angle = atan(hit.z, hit.x);
+            // Swirling motion
+            float swirl = sin(distToCenter * 20.0 - uTime * 5.0 + angle * 4.0);
+            float bands = fract(distToCenter * 8.0 - uTime * 2.0);
+            
+            diskCol = smoothstep(0.0, 0.2, bands) * smoothstep(1.0, 0.8, bands);
+            diskCol *= swirl * 0.5 + 0.5;
+            
+            // Fade out at edges
+            diskCol *= smoothstep(rEventHorizon * 6.0, rEventHorizon * 4.0, distToCenter);
+            diskCol *= smoothstep(rEventHorizon * 1.5, rEventHorizon * 2.5, distToCenter);
+            
+            // Relativistic Doppler Beaming (one side is brighter because it's moving towards us)
+            float doppler = smoothstep(-1.0, 1.0, cos(angle));
+            diskCol *= mix(0.4, 1.6, doppler);
+          }
+        }
+
+        // Plasma Jets
+        float jet = 0.0;
+        vec2 jetP = p;
+        jetP.x *= 4.0; // Narrow
+        float jetDist = length(jetP);
+        float jetA = atan(jetP.x, jetP.y);
+        
+        if (d > rEventHorizon) {
+           float pulse = sin(uTime * 10.0 - abs(p.y) * 20.0) * 0.5 + 0.5;
+           jet = exp(-jetDist * 15.0) * pulse * (1.0 - smoothstep(0.0, 0.8, abs(p.y)));
+        }
+
+        // Photonic Ring (Bright ring right outside event horizon)
+        float photonRing = smoothstep(rEventHorizon + 0.05, rEventHorizon, d) * smoothstep(rEventHorizon - 0.01, rEventHorizon + 0.01, d);
+        photonRing = pow(photonRing, 4.0) * 2.0;
+
+        // Colors
+        vec3 baseDiskColor = vec3(1.0, 0.4, 0.1); // Fiery orange/red accretion disk
+        vec3 hotDiskColor = vec3(1.0, 0.9, 0.5); // Bright inner disk
+        vec3 jetColor = vec3(0.2, 0.5, 1.0); // Blue plasma jets
+
+        vec3 col = vec3(0.0);
+        
+        // Add components
+        col += mix(baseDiskColor, hotDiskColor, smoothstep(0.0, 1.0, diskCol)) * diskCol;
+        col += jetColor * jet * 2.0;
+        col += hotDiskColor * photonRing;
+
+        // Cut out the core black hole
+        col *= (1.0 - blackHole);
+
+        // Add some glowing ambient stardust in the background
+        float dust = fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
+        col += vec3(1.0) * smoothstep(0.99, 1.0, dust) * (1.0 - blackHole) * 0.3;
+
+        gl_FragColor = vec4(col, 1.0);
+      }
+    `);
+  }
+
+  // ─── Scene 13: Earth ───
+  private buildEarth() {
+    this.create2DShaderScene(`
+      uniform float uTime;
+      uniform vec2 uResolution;
+      varying vec2 vUv;
+
+      float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+      float noise(vec2 p){
+        vec2 i=floor(p);vec2 f=fract(p);f=f*f*(3.0-2.0*f);
+        return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y);
+      }
+      float fbm(vec2 p){float v=0.0,a=0.5;mat2 m=mat2(1.6,1.2,-1.2,1.6);for(int i=0;i<6;i++){v+=a*noise(p);p=m*p;a*=0.5;}return v;}
+
+      // Project 2D coordinates to a sphere (returns z-depth or 0 if outside)
+      float sphere(vec2 p, out vec3 n) {
+        float r = length(p);
+        if (r > 1.0) return 0.0;
+        n = vec3(p, sqrt(1.0 - r*r));
+        return 1.0;
+      }
+
+      void main(){
+        vec2 uv = vUv;
+        float ar = uResolution.x / uResolution.y;
+        uv.x = (uv.x - 0.5) * ar + 0.5;
+        vec2 p = (uv - 0.5) * 2.5; // Scale
+
+        vec3 lightDir = normalize(vec3(1.0, 0.5, 0.5));
+        
+        vec3 n;
+        float isSphere = sphere(p, n);
+        
+        vec3 col = vec3(0.0);
+
+        if (isSphere > 0.0) {
+          // Wrap coordinates around the sphere (lat/long)
+          float theta = atan(n.x, n.z);
+          float phi = asin(n.y);
+          
+          vec2 sphereUv = vec2(theta / 3.14159, phi / (3.14159 / 2.0));
+          // Rotate Earth
+          sphereUv.x += uTime * 0.05;
+
+          // Continents / Terrain
+          float terrain = fbm(sphereUv * 3.0);
+          float oceanMask = smoothstep(0.4, 0.6, terrain);
+
+          // Colors
+          vec3 deepOcean = vec3(0.02, 0.1, 0.3);
+          vec3 shallowWater = vec3(0.05, 0.4, 0.6);
+          vec3 landColor = vec3(0.1, 0.4, 0.15); // Green
+          vec3 desertColor = vec3(0.6, 0.5, 0.3);
+
+          // Build surface color
+          vec3 ocean = mix(deepOcean, shallowWater, fbm(sphereUv * 10.0 + uTime * 0.1));
+          
+          // Latitude dependent biomes
+          float latitudeMask = abs(phi) / (3.14159 / 2.0); // 0 at equator, 1 at poles
+          vec3 surface = mix(landColor, desertColor, fbm(sphereUv * 5.0 + 10.0));
+          
+          // Ice caps
+          float ice = smoothstep(0.7, 0.9, latitudeMask + fbm(sphereUv * 10.0) * 0.2);
+          surface = mix(surface, vec3(0.9, 0.95, 1.0), ice);
+
+          col = mix(ocean, surface, oceanMask);
+
+          // Clouds (rotate slightly faster than earth)
+          float cl = fbm(vec2(sphereUv.x * 4.0 + uTime * 0.02, sphereUv.y * 5.0) + fbm(sphereUv * 15.0) * 0.5);
+          float cloudMask = smoothstep(0.5, 0.8, cl);
+          col = mix(col, vec3(0.9, 0.95, 1.0), cloudMask * 0.8);
+
+          // Lighting (Lambertian + Rim)
+          float diffuse = max(0.0, dot(n, lightDir));
+          
+          // Termintor shadow tuning (makes sunset/sunrise edge soft and red/orange)
+          float terminator = smoothstep(-0.2, 0.1, dot(n, lightDir));
+          
+          // Twilight glow replacing the hard shadow edge
+          vec3 twilight = vec3(0.8, 0.3, 0.1) * smoothstep(-0.2, 0.1, dot(n, lightDir)) * smoothstep(0.2, -0.1, dot(n, lightDir));
+
+          col = col * diffuse + twilight;
+          
+          // Night side city lights
+          if (diffuse < 0.1 && oceanMask > 0.0 && ice < 0.1) {
+             float lights = fbm(sphereUv * 40.0);
+             col += vec3(1.0, 0.8, 0.5) * smoothstep(0.7, 1.0, lights) * (1.0 - cloudMask) * 1.5;
+          }
+
+        } else {
+          // Atmosphere Glow (outside the sphere)
+          float d = length(p);
+          float atmo = exp(-(d - 1.0) * 12.0) * smoothstep(1.5, 1.0, d);
+          
+          // Only glow on the illuminated side
+          float sunSide = dot(normalize(vec3(p, 0.0)), lightDir);
+          atmo *= smoothstep(-0.5, 0.5, sunSide);
+          
+          col += vec3(0.1, 0.4, 0.8) * atmo;
+
+          // Stars
+          float stars = fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
+          col += vec3(1.0) * smoothstep(0.995, 1.0, stars) * (1.0 - atmo);
+        }
+
+        gl_FragColor = vec4(col, 1.0);
+      }
+    `);
+  }
+
+  // ─── Scene 14: Mars ───
+  private buildMars() {
+    this.create2DShaderScene(`
+      uniform float uTime;
+      uniform vec2 uResolution;
+      varying vec2 vUv;
+
+      float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+      float noise(vec2 p){
+        vec2 i=floor(p);vec2 f=fract(p);f=f*f*(3.0-2.0*f);
+        return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y);
+      }
+      float fbm(vec2 p){float v=0.0,a=0.5;mat2 m=mat2(1.6,1.2,-1.2,1.6);for(int i=0;i<7;i++){v+=a*noise(p);p=m*p;a*=0.5;}return v;}
+
+      // Project 2D coordinates to a sphere (returns z-depth or 0 if outside)
+      float sphere(vec2 p, out vec3 n) {
+        float r = length(p);
+        if (r > 1.0) return 0.0;
+        n = vec3(p, sqrt(1.0 - r*r));
+        return 1.0;
+      }
+
+      void main(){
+        vec2 uv = vUv;
+        float ar = uResolution.x / uResolution.y;
+        uv.x = (uv.x - 0.5) * ar + 0.5;
+        vec2 p = (uv - 0.5) * 2.5; // Scale
+
+        vec3 lightDir = normalize(vec3(0.8, 0.2, 1.0)); // Lower sun angle
+        
+        vec3 n;
+        float isSphere = sphere(p, n);
+        
+        vec3 col = vec3(0.0);
+
+        if (isSphere > 0.0) {
+          float theta = atan(n.x, n.z);
+          float phi = asin(n.y);
+          
+          vec2 sphereUv = vec2(theta / 3.14159, phi / (3.14159 / 2.0));
+          sphereUv.x += uTime * 0.03; // Rotate Mars
+
+          // Terrain features (craters and valleys)
+          float craterBase = noise(sphereUv * 15.0);
+          float craterRim = smoothstep(0.4, 0.5, craterBase) * smoothstep(0.6, 0.5, craterBase);
+          float craters = craterRim * 0.5 - smoothstep(0.5, 0.8, craterBase) * 0.3;
+          
+          float terrain = fbm(sphereUv * 4.0) + craters;
+          
+          // Colors
+          vec3 darkRust = vec3(0.35, 0.15, 0.05);
+          vec3 brightDust = vec3(0.8, 0.35, 0.15);
+          vec3 rockyGrey = vec3(0.4, 0.25, 0.15);
+          
+          vec3 surface = mix(darkRust, brightDust, smoothstep(0.2, 0.8, terrain));
+          
+          // Add rocky details
+          float rockNoise = fbm(sphereUv * 20.0);
+          surface = mix(surface, rockyGrey, rockNoise * 0.3);
+
+          // Polar Ice cap (much smaller than Earth's)
+          float latitudeMask = abs(phi) / (3.14159 / 2.0);
+          float ice = smoothstep(0.85, 0.95, latitudeMask + fbm(sphereUv * 15.0) * 0.1);
+          surface = mix(surface, vec3(0.9, 0.85, 0.8), ice); // Slightly dusty ice
+
+          // Lighting
+          // Add bump mapping based on terrain derivative
+          vec2 eps = vec2(0.01, 0.0);
+          float hX = fbm((sphereUv + eps.xy) * 4.0) - fbm((sphereUv - eps.xy) * 4.0);
+          float hY = fbm((sphereUv + eps.yx) * 4.0) - fbm((sphereUv - eps.yx) * 4.0);
+          vec3 bumpNormal = normalize(n + vec3(hX, hY, 0.0) * 0.5);
+
+          float diffuse = max(0.0, dot(bumpNormal, lightDir));
+          
+          // Thin Martian atmosphere creates a distinct bright rim, but almost no twilight
+          float rim = 1.0 - max(0.0, dot(n, vec3(0.0, 0.0, 1.0)));
+          rim = smoothstep(0.6, 1.0, rim);
+          
+          col = surface * diffuse + vec3(0.9, 0.4, 0.2) * rim * diffuse * 0.5;
+
+        } else {
+          // Thin dusty atmosphere outside the sphere
+          float d = length(p);
+          float atmo = exp(-(d - 1.0) * 20.0) * smoothstep(1.2, 1.0, d); // Drops off much faster than Earth
+          
+          float sunSide = dot(normalize(vec3(p, 0.0)), lightDir);
+          atmo *= smoothstep(-0.2, 0.8, sunSide);
+          
+          col += vec3(0.7, 0.3, 0.1) * atmo;
+
+          // Stars
+          float stars = fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
+          col += vec3(1.0) * smoothstep(0.995, 1.0, stars) * (1.0 - atmo);
+        }
+
+        gl_FragColor = vec4(col, 1.0);
+      }
+    `);
+  }
+
+  // ─── Scene 15: Gas Giant (Jupiter/Saturn Style) ───
+  private buildGasGiant() {
+    this.create2DShaderScene(`
+      uniform float uTime;
+      uniform vec2 uResolution;
+      varying vec2 vUv;
+
+      float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+      float noise(vec2 p){
+        vec2 i=floor(p);vec2 f=fract(p);f=f*f*(3.0-2.0*f);
+        return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y);
+      }
+      float fbm(vec2 p){float v=0.0,a=0.5;mat2 m=mat2(1.6,1.2,-1.2,1.6);for(int i=0;i<6;i++){v+=a*noise(p);p=m*p;a*=0.5;}return v;}
+
+      // Project 2D coordinates to a sphere (returns z-depth or 0 if outside)
+      float sphere(vec2 p, out vec3 n) {
+        float r = length(p);
+        if (r > 1.0) return 0.0;
+        n = vec3(p, sqrt(1.0 - r*r));
+        return 1.0;
+      }
+
+      void main(){
+        vec2 uv = vUv;
+        float ar = uResolution.x / uResolution.y;
+        uv.x = (uv.x - 0.5) * ar + 0.5;
+        vec2 p = (uv - 0.5) * 2.5; // Scale
+
+        // Tilt the whole system so we can see the rings clearly
+        float tilt = 0.4;
+        mat2 rotTilt = mat2(cos(tilt), -sin(tilt), sin(tilt), cos(tilt));
+        p.xy *= rotTilt;
+
+        vec3 lightDir = normalize(vec3(0.8, 0.4, 0.5));
+        
+        vec3 n;
+        float isSphere = sphere(p, n);
+        
+        vec3 col = vec3(0.0);
+
+        // --- RINGS (Back Half) ---
+        float d = length(vec2(p.x, p.y * 3.0)); // Flattened circle to form a ring perspective
+        
+        // Calculate z depth of the ring plane at this pixel
+        // The ring lies on the x-z plane (y=0 in un-tilted space)
+        float ringZ = -p.y * 3.0; // Very rough approximation of depth for sorting
+        
+        float isRingBack = step(1.5, d) * step(d, 3.5) * step(0.0, ringZ);
+        float isRingFront = step(1.5, d) * step(d, 3.5) * step(ringZ, 0.0);
+        
+        // Ring texture
+        float ringNoise = fbm(vec2(d * 20.0, 0.0));
+        float ringBands = sin(d * 50.0) * 0.5 + 0.5;
+        float ringAlpha = (ringNoise * 0.5 + ringBands * 0.5) * smoothstep(1.5, 1.8, d) * smoothstep(3.5, 3.2, d);
+        
+        vec3 ringColor = mix(vec3(0.6, 0.5, 0.4), vec3(0.8, 0.7, 0.6), ringNoise);
+        
+        // Render back ring first
+        if (isRingBack > 0.0 && isSphere == 0.0) {
+           col += ringColor * ringAlpha * 0.8; // Back rings are a bit darker
+        }
+
+        // --- PLANET ---
+        if (isSphere > 0.0) {
+          float theta = atan(n.x, n.z);
+          float phi = asin(n.y);
+          
+          vec2 sphereUv = vec2(theta / 3.14159, phi / (3.14159 / 2.0));
+          sphereUv.x += uTime * 0.05;
+
+          // Banded noise (stretch the X axis)
+          float bands = fbm(vec2(sphereUv.y * 10.0, sphereUv.x * 2.0 + uTime * 0.02));
+          float turb = fbm(sphereUv * 8.0 + bands * 2.0); // Turbulence within bands
+          
+          float storm = fbm(sphereUv * 15.0 - uTime * 0.1);
+          
+          // Colors
+          vec3 col1 = vec3(0.9, 0.8, 0.6); // Pale beige
+          vec3 col2 = vec3(0.7, 0.4, 0.2); // Rusty orange/brown
+          vec3 col3 = vec3(0.5, 0.2, 0.1); // Dark brown bands
+          
+          vec3 surface = mix(col1, col2, smoothstep(0.2, 0.8, bands));
+          surface = mix(surface, col3, smoothstep(0.6, 1.0, turb));
+          
+          // Great Red Spot (Big storm)
+          vec2 stormPos = vec2(0.2, -0.3); // Fixed position on UV
+          float stormDist = length(vec2(sphereUv.x - stormPos.x, (sphereUv.y - stormPos.y) * 2.0));
+          float isStorm = smoothstep(0.3, 0.0, stormDist);
+          surface = mix(surface, vec3(0.8, 0.3, 0.1), isStorm * storm);
+
+          // Lighting
+          float diffuse = max(0.0, dot(n, lightDir));
+          
+          // Cast shadow from ring onto the planet
+          // Simplistic shadow calculation: Rings obscure light if n points toward the ring plane
+          float ringShadow = 1.0;
+          if (n.y < 0.2 && n.y > -0.2 && n.x > 0.0) {
+              ringShadow = mix(1.0, 0.4, smoothstep(0.2, 0.0, abs(n.y)));
+          }
+
+          col = surface * diffuse * ringShadow;
+
+        }
+
+        // --- RINGS (Front Half) ---
+        if (isRingFront > 0.0) {
+           // If it's over the sphere, just overwrite it
+           float shadowMask = 1.0;
+           // Planet casts shadow onto the back part of the ring (we handle this in front ring primarily if it wraps around)
+           if (p.x < 0.0 && d < 2.5) {
+               shadowMask = mix(1.0, 0.1, smoothstep(-0.5, -1.0, p.x));
+           }
+           
+           vec3 frontRing = ringColor * ringAlpha * shadowMask;
+           
+           // Blend Over
+           col = mix(col, frontRing, ringAlpha * isRingFront);
+        }
+
+        // Background space
+        if (isSphere == 0.0 && isRingBack == 0.0 && isRingFront == 0.0) {
+          float stars = fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
+          col += vec3(1.0) * smoothstep(0.995, 1.0, stars);
+        } else if (isSphere == 0.0 && isRingFront > 0.0) {
+           // Blend stars behind transparent parts of front ring
+           float stars = fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
+           col += vec3(1.0) * smoothstep(0.995, 1.0, stars) * (1.0 - ringAlpha);
+        }
+
+        gl_FragColor = vec4(col, 1.0);
       }
     `);
   }
