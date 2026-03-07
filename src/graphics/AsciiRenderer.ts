@@ -1,9 +1,12 @@
-import * as THREE from 'three';
-import { AsciiShader } from './AsciiShader';
-import { create2DAsciiTextureAtlas, createMatrixTextureAtlas } from './GlyphAtlas';
-import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import * as THREE from "three";
+import { AsciiShader } from "./AsciiShader";
+import {
+  create2DAsciiTextureAtlas,
+  createMatrixTextureAtlas,
+} from "./GlyphAtlas";
+import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
+import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
+import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 
 export class AsciiRenderer {
   private renderer: THREE.WebGLRenderer;
@@ -37,7 +40,11 @@ export class AsciiRenderer {
     const h = container.clientHeight || window.innerHeight;
 
     // WebGL Renderer
-    this.renderer = new THREE.WebGLRenderer({ antialias: false, alpha: false, preserveDrawingBuffer: true });
+    this.renderer = new THREE.WebGLRenderer({
+      antialias: false,
+      alpha: false,
+      preserveDrawingBuffer: true,
+    });
     this.renderer.setSize(w, h);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.container.appendChild(this.renderer.domElement);
@@ -55,7 +62,8 @@ export class AsciiRenderer {
 
     // Character Atlases (2D High Density Grids)
     // Using a dense 69-character gradient for extreme fidelity
-    const charString = '@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\\|()1{}[]?-_+~<>i!lI;:,"^`\'. ';
+    const charString =
+      "@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\\|()1{}[]?-_+~<>i!lI;:,\"^`'. ";
     const asciiData = create2DAsciiTextureAtlas(charString);
     const matrixData = createMatrixTextureAtlas();
 
@@ -65,10 +73,22 @@ export class AsciiRenderer {
         tDiffuse: { value: this.renderTarget.texture },
         tAscii: { value: asciiData.texture },
         tMatrix: { value: matrixData.texture },
-        
+
         // Atlas Grid Data
-        uAsciiData: { value: new THREE.Vector3(asciiData.cols, asciiData.rows, asciiData.totalChars) },
-        uMatrixData: { value: new THREE.Vector3(matrixData.cols, matrixData.rows, matrixData.totalChars) },
+        uAsciiData: {
+          value: new THREE.Vector3(
+            asciiData.cols,
+            asciiData.rows,
+            asciiData.totalChars,
+          ),
+        },
+        uMatrixData: {
+          value: new THREE.Vector3(
+            matrixData.cols,
+            matrixData.rows,
+            matrixData.totalChars,
+          ),
+        },
 
         uResolution: { value: new THREE.Vector2(w, h) },
         uCharSize: { value: 16.0 }, // Determines grid density automatically
@@ -89,19 +109,30 @@ export class AsciiRenderer {
       fragmentShader: AsciiShader.fragmentShader,
     });
 
-    const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), this.asciiMaterial);
+    const quad = new THREE.Mesh(
+      new THREE.PlaneGeometry(2, 2),
+      this.asciiMaterial,
+    );
     this.asciiPassScene.add(quad);
 
     // Post-processing Composer
     this.composer = new EffectComposer(this.renderer);
-    
+
     // Pass 1: Render the ASCII quad
-    const renderPass = new RenderPass(this.asciiPassScene, this.asciiPassCamera);
+    const renderPass = new RenderPass(
+      this.asciiPassScene,
+      this.asciiPassCamera,
+    );
     renderPass.clear = true;
     this.composer.addPass(renderPass);
 
     // Pass 2: Bloom Pass
-    this.bloomPass = new UnrealBloomPass(new THREE.Vector2(w, h), 0.5, 0.4, 0.85);
+    this.bloomPass = new UnrealBloomPass(
+      new THREE.Vector2(w, h),
+      0.5,
+      0.4,
+      0.85,
+    );
     this.composer.addPass(this.bloomPass);
 
     // Image source scene (flat quad for uploaded images)
@@ -112,7 +143,7 @@ export class AsciiRenderer {
     // Resize handler
     this.resizeObserver = new ResizeObserver(() => this.onResize());
     this.resizeObserver.observe(this.container);
-    window.addEventListener('resize', this.onResize);
+    window.addEventListener("resize", this.onResize);
   }
 
   // Dynamically update shader uniforms
@@ -133,28 +164,27 @@ export class AsciiRenderer {
     // Map resolution % (1-100) to pixel size (inverted)
     // 100% resolution = 6px cell height (~500 columns, Ultra scale)
     // 1% resolution = 32px cell height (~120 columns, Low scale)
-    const t = 1.0 - (opts.resolution / 100.0);
+    const t = 1.0 - opts.resolution / 100.0;
     const mappedSize = 6.0 + t * 26.0;
-    
+
     this.asciiMaterial.uniforms.uCharSize.value = mappedSize;
     this.asciiMaterial.uniforms.uBrightness.value = opts.brightness;
     this.asciiMaterial.uniforms.uContrast.value = opts.contrast;
     this.asciiMaterial.uniforms.uColorMode.value = opts.colorMode ? 1.0 : 0.0;
-    
 
     const FX_MAP: Record<string, number> = {
-      'none': 0,
-      'noise': 1,
-      'field': 2,
-      'intervals': 3,
-      'beam sweep': 4,
-      'glitch': 5,
-      'CRT monitor': 6,
-      'matrix rain': 7
+      none: 0,
+      noise: 1,
+      field: 2,
+      intervals: 3,
+      "beam sweep": 4,
+      glitch: 5,
+      "CRT monitor": 6,
+      "matrix rain": 7,
     };
     this.asciiMaterial.uniforms.uFxMode.value = FX_MAP[opts.fxPreset] || 0;
     this.asciiMaterial.uniforms.uDither.value = opts.dithering;
-    
+
     this.asciiMaterial.uniforms.uAsciiOpacity.value = opts.asciiOpacity;
     this.asciiMaterial.uniforms.uAsciiDensity.value = opts.asciiDensity;
     this.asciiMaterial.uniforms.uImageVisibility.value = opts.imageVisibility;
@@ -164,11 +194,11 @@ export class AsciiRenderer {
     this.bloomPass.strength = opts.bloomStrength;
 
     // Parse hex without Three.js Color to prevent automatic sRGB->Linear conversions
-    const hex = parseInt(opts.bgColor.replace(/^#/, ''), 16);
+    const hex = parseInt(opts.bgColor.replace(/^#/, ""), 16);
     this.asciiMaterial.uniforms.uBgColor.value = [
       ((hex >> 16) & 255) / 255,
       ((hex >> 8) & 255) / 255,
-      (hex & 255) / 255
+      (hex & 255) / 255,
     ];
   }
 
@@ -233,10 +263,10 @@ export class AsciiRenderer {
       const material = new THREE.ShaderMaterial({
         uniforms: {
           tDiffuse: { value: texture },
-          uTime: { value: 0.0 }
+          uTime: { value: 0.0 },
         },
         vertexShader,
-        fragmentShader
+        fragmentShader,
       });
 
       const geometry = new THREE.PlaneGeometry(2, 2);
@@ -246,7 +276,10 @@ export class AsciiRenderer {
   }
 
   // Load a video element as a texture
-  public setVideoSource(videoElement: HTMLVideoElement | null, isWebcam: boolean = false) {
+  public setVideoSource(
+    videoElement: HTMLVideoElement | null,
+    isWebcam: boolean = false,
+  ) {
     if (!videoElement) {
       this.useImageSource = false;
       if (this.imageMesh) {
@@ -293,10 +326,10 @@ export class AsciiRenderer {
         varying vec2 vUv;
         void main() {
           vec2 uv = vUv;
-          ${isWebcam ? 'uv.x = 1.0 - uv.x;' : ''} // Mirror webcam
+          ${isWebcam ? "uv.x = 1.0 - uv.x;" : ""} // Mirror webcam
           gl_FragColor = texture2D(tDiffuse, uv);
         }
-      `
+      `,
     });
 
     const geometry = new THREE.PlaneGeometry(2, 2);
@@ -304,8 +337,7 @@ export class AsciiRenderer {
     this.imageScene.add(this.imageMesh);
   }
 
-
-  private onResize = () => {
+  public onResize = () => {
     const w = this.container.clientWidth || window.innerWidth;
     const h = this.container.clientHeight || window.innerHeight;
 
@@ -321,7 +353,10 @@ export class AsciiRenderer {
     this.asciiMaterial.uniforms.uResolution.value.set(w, h);
   };
 
-  public setSceneAndCamera(scene: THREE.Scene, camera: THREE.PerspectiveCamera) {
+  public setSceneAndCamera(
+    scene: THREE.Scene,
+    camera: THREE.PerspectiveCamera,
+  ) {
     this.scene = scene;
     this.camera = camera;
   }
@@ -347,7 +382,7 @@ export class AsciiRenderer {
   };
 
   public destroy() {
-    window.removeEventListener('resize', this.onResize);
+    window.removeEventListener("resize", this.onResize);
     this.resizeObserver.disconnect();
     this.renderer.dispose();
     this.renderTarget.dispose();

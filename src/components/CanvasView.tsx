@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback, useState } from 'react';
 import { AsciiRenderer } from '../graphics/AsciiRenderer';
 import { SceneManager } from '../graphics/SceneManager';
 import { useStore } from '../store/useStore';
@@ -55,7 +55,62 @@ export const CanvasView: React.FC = () => {
     imageVisibility,
     characterRamp,
     bloomStrength,
+    aspectRatio,
   } = useStore();
+
+  const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
+
+  useEffect(() => {
+    // Initial size
+    setWindowSize({ width: window.innerWidth, height: window.innerHeight });
+
+    const handleResize = () => {
+      setWindowSize({ width: window.innerWidth, height: window.innerHeight });
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const getContainerStyle = (): React.CSSProperties => {
+    if (aspectRatio === 'ORIGINAL' || windowSize.width === 0) {
+      return {
+        position: 'relative' as const,
+        width: '100%',
+        height: '100%',
+        background: '#000',
+        zIndex: 0,
+        animation: 'hardwareWake 1.2s cubic-bezier(0.2, 0.8, 0.2, 1) forwards',
+      };
+    }
+
+    // Available space reflecting padding in the flex wrapper and the 420px sidebar
+    const paddingX = 48;
+    const sidebarWidth = 420;
+    const availW = (windowSize.width - sidebarWidth) - paddingX;
+    const paddingY = 120; // Padding for BottomBar
+    const availH = windowSize.height - paddingY;
+
+    const [wRatio, hRatio] = aspectRatio.split(':').map(Number);
+    const targetRatio = wRatio / hRatio;
+
+    let finalW = availW;
+    let finalH = finalW / targetRatio;
+
+    if (finalH > availH) {
+      finalH = availH;
+      finalW = finalH * targetRatio;
+    }
+
+    return {
+      position: 'relative' as const,
+      width: `${Math.floor(finalW)}px`,
+      height: `${Math.floor(finalH)}px`,
+      background: '#000',
+      zIndex: 0,
+      animation: 'hardwareWake 1.2s cubic-bezier(0.2, 0.8, 0.2, 1) forwards',
+    };
+  };
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -103,6 +158,22 @@ export const CanvasView: React.FC = () => {
       });
     }
   }, [resolution, brightness, contrast, colorMode, fxPreset, dithering, backgroundColor, asciiOpacity, asciiDensity, imageVisibility, characterRamp, bloomStrength]);
+
+  // Handle aspect ratio change resize
+  useEffect(() => {
+    if (rendererRef.current) {
+      // Delay slightly to allow the DOM styles to apply
+      const timer = setTimeout(() => {
+        if (containerRef.current) {
+          const w = containerRef.current.clientWidth;
+          const h = containerRef.current.clientHeight;
+          rendererRef.current?.onResize();
+          sceneManagerRef.current?.resize(w, h);
+        }
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [aspectRatio, windowSize]);
 
   // Update active scene
   useEffect(() => {
@@ -221,16 +292,18 @@ export const CanvasView: React.FC = () => {
   }, [customText, customFont, sourceMode]);
 
   return (
-    <div
-      ref={containerRef}
-      style={{
-        position: 'fixed',
-        inset: 0,
-        width: '100vw',
-        height: '100vh',
-        background: '#000',
-        zIndex: 0,
-      }}
-    />
+    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: aspectRatio !== 'ORIGINAL' ? '24px 24px 80px 24px' : '0' }}>
+      <div
+        ref={containerRef}
+        style={getContainerStyle()}
+      >
+        <style>{`
+        @keyframes hardwareWake {
+          0% { opacity: 0; filter: blur(20px); }
+          100% { opacity: 1; filter: blur(0px); }
+        }
+      `}</style>
+      </div>
+    </div>
   );
 };

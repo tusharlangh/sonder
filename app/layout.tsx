@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
+import { Pixelify_Sans } from "next/font/google";
 import "./globals.css";
+
+const pixelify = Pixelify_Sans({ subsets: ["latin"], variable: "--font-pixelify" });
 
 export const metadata: Metadata = {
   title: "Sonder | Kinetic Text Lab",
@@ -12,12 +15,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${pixelify.variable}`}>
       <head>
-        <link
-          href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=Pixelify+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap"
-          rel="stylesheet"
-        />
+        {/* Utilizing native system font stack: San Francisco on macOS/iOS, Segoe on Windows */}
       </head>
       <body>
         {children}

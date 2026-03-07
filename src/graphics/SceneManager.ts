@@ -194,6 +194,15 @@ export class SceneManager {
     this.camera.lookAt(0, 0, 0);
   }
 
+  // Update camera and uniforms on resize
+  public resize(width: number, height: number) {
+    this.camera.aspect = width / height;
+    this.camera.updateProjectionMatrix();
+    if (this.activeShaderMaterial) {
+      this.activeShaderMaterial.uniforms.uResolution.value.set(width, height);
+    }
+  }
+
   // Called frame by frame from CanvasView
   public update(timeInSeconds: number) {
     if (this.activeShaderMaterial) {

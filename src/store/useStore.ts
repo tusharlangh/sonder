@@ -3,6 +3,7 @@ import { create } from 'zustand';
 export type ArtStyle = 'classic';
 export type FXPreset = 'none' | 'noise' | 'field' | 'intervals' | 'beam sweep' | 'glitch' | 'CRT monitor' | 'matrix rain';
 export type SourceMode = 'scenes' | 'templates' | 'image' | 'video' | 'text' | 'camera';
+export type AspectRatio = 'ORIGINAL' | '16:9' | '4:3' | '1:1' | '3:4' | '9:16';
 
 interface AppState {
   // Source toggle
@@ -40,6 +41,10 @@ interface AppState {
   // Resolution (char size)
   resolution: number;
   setResolution: (val: number) => void;
+
+  // Aspect Ratio
+  aspectRatio: AspectRatio;
+  setAspectRatio: (val: AspectRatio) => void;
 
   // Template selection
   activeTemplate: string | null;
@@ -114,6 +119,9 @@ export const useStore = create<AppState>((set) => ({
   setActiveScene: (val) => set({ activeScene: val }),
   resolution: 50,
   setResolution: (val) => set({ resolution: val }),
+
+  aspectRatio: 'ORIGINAL',
+  setAspectRatio: (val) => set({ aspectRatio: val }),
 
   activeTemplate: null,
   setActiveTemplate: (val) => set({ activeTemplate: val }),
