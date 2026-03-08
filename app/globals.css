@@ -3,18 +3,19 @@
 @import "tailwindcss";
 
 :root {
-  /* Black & White palette */
+
   --accent: #FFFFFF;
   --accent-rgb: 255, 255, 255;
   --accent-light: #FFFFFF;
-  --accent-dark: #CCCCCC;
-  --surface: rgba(255, 255, 255, 0.03);
-  --surface-hover: rgba(255, 255, 255, 0.06);
-  --border: rgba(255, 255, 255, 0.08);
-  --border-hover: rgba(255, 255, 255, 0.14);
-  --text-primary: #FFFFFF;
-  --text-secondary: rgba(255, 255, 255, 0.6);
-  --text-muted: rgba(255, 255, 255, 0.35);
+  --accent-dark: #A1A1A6;
+  --surface: rgba(28, 28, 30, 0.6);
+  --surface-hover: rgba(44, 44, 46, 0.8);
+  --surface-elevated: rgba(44, 44, 46, 0.85);
+  --border: rgba(255, 255, 255, 0.1);
+  --border-hover: rgba(255, 255, 255, 0.2);
+  --text-primary: #F5F5F7;
+  --text-secondary: #86868B;
+  --text-muted: rgba(255, 255, 255, 0.3);
 }
 
 * {
@@ -23,20 +24,21 @@
 
 body {
   background: #000;
-  color: #fff;
+  color: var(--text-primary);
   margin: 0;
   padding: 0;
   width: 100vw;
   height: 100vh;
   overflow: hidden;
-  font-family: 'Manrope', 'Space Mono', 'SF Mono', 'Fira Code', 'Consolas', sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Helvetica Neue", sans-serif;
   user-select: none;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Scrollbar */
 ::-webkit-scrollbar {
-  width: 3px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
@@ -44,63 +46,69 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255,255,255,0.1);
-  border-radius: 4px;
+  background: rgba(255,255,255,0.15);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255,255,255,0.2);
+  background-color: rgba(255,255,255,0.3);
 }
 
-/* ─── Custom Range Slider ─── */
 input[type="range"] {
   -webkit-appearance: none !important;
   appearance: none !important;
   width: 100%;
-  height: 2px;
-  background: linear-gradient(90deg, rgba(255,255,255,0.08), rgba(255,255,255,0.18)) !important;
+  height: 4px;
+  background: rgba(255,255,255,0.2) !important;
   outline: none;
   border: none;
   cursor: pointer;
-  border-radius: 2px;
+  border-radius: 9999px;
+  transition: background 0.2s ease;
+}
+
+input[type="range"]:hover {
+  background: rgba(255,255,255,0.3) !important;
 }
 
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none !important;
   appearance: none !important;
-  width: 14px;
-  height: 14px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
-  background: rgba(255,255,255,0.7) !important;
-  border: 2px solid rgba(255,255,255,0.3) !important;
+  background: #FFFFFF !important;
+  border: 1px solid rgba(0,0,0,0.1) !important;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 0 10px rgba(255,255,255,0.15);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2), 0 0 1px rgba(0,0,0,0.5);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s;
 }
 
 input[type="range"]::-webkit-slider-thumb:hover {
-  background: #fff !important;
-  box-shadow: 0 0 16px rgba(255,255,255,0.3);
-  transform: scale(1.15);
+  transform: scale(1.1);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.3), 0 0 2px rgba(0,0,0,0.6);
 }
 
 input[type="range"]::-moz-range-thumb {
-  width: 14px;
-  height: 14px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
-  background: rgba(255,255,255,0.7) !important;
-  border: 2px solid rgba(255,255,255,0.3) !important;
+  background: #fff !important;
+  border: 1px solid rgba(0,0,0,0.1) !important;
   cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2), 0 0 1px rgba(0,0,0,0.5);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 input[type="range"]::-moz-range-track {
-  height: 2px;
-  background: linear-gradient(90deg, rgba(255,255,255,0.08), rgba(255,255,255,0.18)) !important;
+  height: 4px;
+  background: rgba(255,255,255,0.2) !important;
   border: none;
-  border-radius: 2px;
+  border-radius: 9999px;
 }
 
-/* ─── Animations ─── */
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }

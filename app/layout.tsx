@@ -1,12 +1,15 @@
 import type { Metadata } from "next";
-import { Pixelify_Sans } from "next/font/google";
+import { Space_Grotesk } from "next/font/google";
 import "./globals.css";
 
-const pixelify = Pixelify_Sans({ subsets: ["latin"], variable: "--font-pixelify" });
+const spaceGrotesk = Space_Grotesk({ subsets: ["latin"], variable: "--font-space-grotesk" });
 
 export const metadata: Metadata = {
   title: "Sonder | Kinetic Text Lab",
   description: "High-performance interactive ASCII kinetic text rendering — transform images and 3D scenes into stunning text-based art.",
+  icons: {
+    icon: '/logo.svg',
+  },
 };
 
 export default function RootLayout({
@@ -15,9 +18,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${pixelify.variable}`}>
+    <html lang="en" className={`${spaceGrotesk.variable}`}>
       <head>
-        {/* Utilizing native system font stack: San Francisco on macOS/iOS, Segoe on Windows */}
       </head>
       <body>
         {children}

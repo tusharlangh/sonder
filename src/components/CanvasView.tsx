@@ -5,8 +5,6 @@ import { AsciiRenderer } from '../graphics/AsciiRenderer';
 import { SceneManager } from '../graphics/SceneManager';
 import { useStore } from '../store/useStore';
 
-
-
 export const CanvasView: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<AsciiRenderer | null>(null);
@@ -34,7 +32,6 @@ export const CanvasView: React.FC = () => {
     };
   }, []);
 
-
   const {
     resolution,
     brightness,
@@ -42,6 +39,7 @@ export const CanvasView: React.FC = () => {
     colorMode,
     fxPreset,
     dithering,
+    artStyle,
     activeScene,
     activeTemplate,
     sourceMode,
@@ -56,12 +54,17 @@ export const CanvasView: React.FC = () => {
     characterRamp,
     bloomStrength,
     aspectRatio,
+    customCharacterSet,
+    fontScale,
+    bgDither,
+    inverseDither,
+    vignette,
   } = useStore();
 
   const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
 
   useEffect(() => {
-    // Initial size
+
     setWindowSize({ width: window.innerWidth, height: window.innerHeight });
 
     const handleResize = () => {
@@ -84,11 +87,10 @@ export const CanvasView: React.FC = () => {
       };
     }
 
-    // Available space reflecting padding in the flex wrapper and the 420px sidebar
     const paddingX = 48;
     const sidebarWidth = 420;
     const availW = (windowSize.width - sidebarWidth) - paddingX;
-    const paddingY = 120; // Padding for BottomBar
+    const paddingY = 120;
     const availH = windowSize.height - paddingY;
 
     const [wRatio, hRatio] = aspectRatio.split(':').map(Number);
@@ -139,7 +141,6 @@ export const CanvasView: React.FC = () => {
     };
   }, []);
 
-  // Update renderer settings
   useEffect(() => {
     if (rendererRef.current) {
       rendererRef.current.updateSettings({
@@ -149,20 +150,25 @@ export const CanvasView: React.FC = () => {
         colorMode,
         fxPreset,
         dithering,
+        artStyle,
         bgColor: backgroundColor,
         asciiOpacity,
         asciiDensity,
         imageVisibility,
         characterRamp,
         bloomStrength,
+        customCharacterSet,
+        fontScale,
+        bgDither,
+        inverseDither,
+        vignette,
       });
     }
-  }, [resolution, brightness, contrast, colorMode, fxPreset, dithering, backgroundColor, asciiOpacity, asciiDensity, imageVisibility, characterRamp, bloomStrength]);
+  }, [resolution, brightness, contrast, colorMode, fxPreset, dithering, artStyle, backgroundColor, asciiOpacity, asciiDensity, imageVisibility, characterRamp, bloomStrength, customCharacterSet, fontScale, bgDither, inverseDither, vignette]);
 
-  // Handle aspect ratio change resize
   useEffect(() => {
     if (rendererRef.current) {
-      // Delay slightly to allow the DOM styles to apply
+
       const timer = setTimeout(() => {
         if (containerRef.current) {
           const w = containerRef.current.clientWidth;
@@ -175,14 +181,12 @@ export const CanvasView: React.FC = () => {
     }
   }, [aspectRatio, windowSize]);
 
-  // Update active scene
   useEffect(() => {
     if (sceneManagerRef.current && sourceMode === 'scenes') {
       sceneManagerRef.current.setScene(activeScene);
     }
   }, [activeScene, sourceMode]);
 
-  // Update template
   useEffect(() => {
     if (sceneManagerRef.current) {
       if (sourceMode === 'templates' && activeTemplate) {
@@ -193,20 +197,18 @@ export const CanvasView: React.FC = () => {
     }
   }, [activeTemplate, sourceMode]);
 
-  // Image source
   useEffect(() => {
     if (rendererRef.current) {
       if (sourceMode === 'image' && uploadedImage) {
         rendererRef.current.setImageSource(uploadedImage);
       } else if (sourceMode === 'text' || sourceMode === 'camera' || sourceMode === 'video') {
-        // Handled by their respective hooks
+
       } else {
         rendererRef.current.setImageSource(null);
       }
     }
   }, [uploadedImage, sourceMode]);
 
-  // Uploaded Video source
   useEffect(() => {
     if (!rendererRef.current) return;
     const fileVideo = uploadedVideoRef.current;
@@ -223,7 +225,6 @@ export const CanvasView: React.FC = () => {
     }
   }, [uploadedVideo, sourceMode]);
 
-  // Camera source
   useEffect(() => {
     if (!rendererRef.current) return;
     const video = videoRef.current;
@@ -248,7 +249,6 @@ export const CanvasView: React.FC = () => {
     }
   }, [sourceMode]);
 
-  // Text source — render text to an offscreen canvas and feed as image
   useEffect(() => {
     if (!rendererRef.current) return;
     if (sourceMode !== 'text') return;
@@ -263,20 +263,17 @@ export const CanvasView: React.FC = () => {
     const ctx = offscreen.getContext('2d');
     if (!ctx) return;
 
-    // Black background
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
-    // White bold text, auto-sized to fill canvas
     ctx.fillStyle = '#fff';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
-    // Auto-size font to fit canvas width with padding
     let fontSize = 200;
-    // We add a fallback to sans-serif just in case the font isn't loaded yet
+
     const fontStr = (size: number) => `800 ${size}px ${customFont || "'Manrope', 'Arial Black', sans-serif"}`;
-    
+
     ctx.font = fontStr(fontSize);
     const textWidth = ctx.measureText(text).width;
     const maxWidth = canvasWidth * 0.85;

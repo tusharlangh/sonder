@@ -17,8 +17,8 @@ import {
   X,
 } from "lucide-react";
 import { TemplateModal } from "./TemplateModal";
+import { Logo } from "./Logo";
 
-/* ─── Black & White palette ─── */
 const ACCENT = "rgba(255, 255, 255, 0.9)";
 const ACCENT_70 = "rgba(255, 255, 255, 0.6)";
 const ACCENT_40 = "rgba(255, 255, 255, 0.30)";
@@ -56,6 +56,8 @@ export const Controls: React.FC = () => {
     setUploadedVideo,
     controlsVisible,
     setControlsVisible,
+    bottomBarVisible,
+    setBottomBarVisible,
     setIsTemplateModalOpen,
     customText,
     setCustomText,
@@ -73,6 +75,20 @@ export const Controls: React.FC = () => {
     setCharacterRamp,
     bloomStrength,
     setBloomStrength,
+    customCharacterSet,
+    setCustomCharacterSet,
+    fontScale,
+    setFontScale,
+    bgDither,
+    setBgDither,
+    inverseDither,
+    setInverseDither,
+    vignette,
+    setVignette,
+    exportFormat,
+    setExportFormat,
+    exportQuality,
+    setExportQuality,
   } = useStore();
 
   const [openSection, setOpenSection] = useState<string>("gallery");
@@ -96,6 +112,15 @@ export const Controls: React.FC = () => {
 
   const artStyles: Array<{ key: ArtStyle; label: string }> = [
     { key: "classic", label: "CLASSIC" },
+    { key: "braille", label: "BRAILLE" },
+    { key: "halftone", label: "HALFTONE" },
+    { key: "dot", label: "DOT" },
+    { key: "cross", label: "CROSS" },
+    { key: "line", label: "LINE" },
+    { key: "particles", label: "PARTICLES" },
+    { key: "terminal", label: "TERMINAL" },
+    { key: "retro", label: "RETRO" },
+    { key: "claude", label: "CLAUDE" },
   ];
 
   const fxPresets: Array<{ key: FXPreset; label: string }> = [
@@ -168,38 +193,114 @@ export const Controls: React.FC = () => {
     const canvas = document.querySelector("canvas");
     if (!canvas) return;
 
+    if (exportFormat === 'webgl') {
+        const { generateWebGLCodeExport } = await import("../graphics/WebGLCodeGenerator");
+        const codeString = generateWebGLCodeExport();
+        const blob = new Blob([codeString], { type: "text/html" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `sonder-webgl-${Date.now()}.html`;
+        link.click();
+        URL.revokeObjectURL(url);
+        return;
+    }
+
+    if (exportFormat === 'png') {
+
+        const originalWidth = canvas.width;
+        const originalHeight = canvas.height;
+        const originalStyleWidth = canvas.style.width;
+        const originalStyleHeight = canvas.style.height;
+
+        const qt = exportQuality;
+        canvas.width = originalWidth * qt;
+        canvas.height = originalHeight * qt;
+
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        const dataUrl = canvas.toDataURL("image/png", 1.0);
+        const link = document.createElement("a");
+        link.href = dataUrl;
+        link.download = `sonder-capture-${Date.now()}.png`;
+        link.click();
+
+        canvas.width = originalWidth;
+        canvas.height = originalHeight;
+        canvas.style.width = originalStyleWidth;
+        canvas.style.height = originalStyleHeight;
+        return;
+    }
+
     if (isRecording) {
-      // Stop recording
+
       if (recorderRef.current) {
-        recorderRef.current.stopRecording(() => {
-          const blob = recorderRef.current!.getBlob();
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement("a");
-          link.href = url;
-          link.download = `sonder-animation-${Date.now()}.gif`;
-          link.click();
-          recorderRef.current!.destroy();
-          recorderRef.current = null;
-        });
+        if (exportFormat === 'mp4') {
+
+            (recorderRef.current as MediaRecorder).stop();
+        } else {
+
+             (recorderRef.current as any).stopRecording(() => {
+                const blob = (recorderRef.current as any).getBlob();
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement("a");
+                link.href = url;
+                link.download = `sonder-animation-${Date.now()}.gif`;
+                link.click();
+                (recorderRef.current as any).destroy();
+                recorderRef.current = null;
+            });
+        }
       }
       setIsRecording(false);
     } else {
-      // Start recording a GIF
-      const { default: RecordRTC } = await import("recordrtc");
 
-      // Ensure canvas is captured at 30fps
       const stream = canvas.captureStream(30);
-      recorderRef.current = new RecordRTC(stream, {
-        type: "gif",
-        frameRate: 30,
-        canvas: {
-          width: canvas.width / 2,
-          height: canvas.height / 2,
-        },
-      });
 
-      recorderRef.current.startRecording();
-      setIsRecording(true);
+      if (exportFormat === 'mp4') {
+
+          const mimeType = MediaRecorder.isTypeSupported('video/mp4')
+            ? 'video/mp4'
+            : 'video/webm; codecs=vp9';
+
+          const mediaRecorder = new MediaRecorder(stream, {
+              mimeType: mimeType,
+              videoBitsPerSecond: 8000000 * exportQuality,
+          });
+
+          const chunks: Blob[] = [];
+          mediaRecorder.ondataavailable = (e) => {
+              if (e.data.size > 0) chunks.push(e.data);
+          };
+          mediaRecorder.onstop = () => {
+              const blob = new Blob(chunks, { type: mimeType });
+              const url = URL.createObjectURL(blob);
+              const link = document.createElement("a");
+              link.href = url;
+              const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
+              link.download = `sonder-video-${Date.now()}.${ext}`;
+              link.click();
+              URL.revokeObjectURL(url);
+              recorderRef.current = null;
+          };
+
+          mediaRecorder.start();
+          recorderRef.current = mediaRecorder as any;
+          setIsRecording(true);
+      } else {
+
+          const { default: RecordRTC } = await import("recordrtc");
+          recorderRef.current = new RecordRTC(stream, {
+            type: "gif",
+            frameRate: 30,
+            canvas: {
+              width: (canvas.width / 2) * exportQuality,
+              height: (canvas.height / 2) * exportQuality,
+            },
+          });
+          (recorderRef.current as any).startRecording();
+          setIsRecording(true);
+      }
     }
   };
 
@@ -220,18 +321,24 @@ export const Controls: React.FC = () => {
 
   return (
     <>
-      {/* ─── AMBIENT GLOW (removed for flat aesthetic) ─── */}
 
-      {/* ─── SIDEBAR CONTROLS ─── */}
       <div className="w-full h-full flex flex-col overflow-hidden relative">
         <div className="flex-1 overflow-y-auto pt-10 px-10 pb-[120px] flex flex-col">
-          <div className="flex flex-col gap-[6px] mb-4">
-            <h1
-              className="text-[32px] leading-none tracking-[0.2em] text-white font-bold m-0"
-              style={{ fontFamily: "var(--font-pixelify), sans-serif" }}
-            >
-              SONDER
-            </h1>
+          <div className="flex flex-col gap-[6px] mb-8">
+            <div className="flex items-center gap-[14px]">
+              <div className="w-[26px] h-7 text-white">
+                <Logo />
+              </div>
+              <h1
+                className="text-[36px] leading-tight tracking-[0.1em] text-white font-bold m-0"
+                style={{ fontFamily: "var(--font-space-grotesk), sans-serif" }}
+              >
+                SONDER
+              </h1>
+            </div>
+            <p className="text-[13px] text-white/50 m-0 font-medium tracking-wide">
+              Visual Essence Generator
+            </p>
           </div>
 
           <AccordionItem
@@ -243,10 +350,10 @@ export const Controls: React.FC = () => {
           >
             <button
               onClick={() => setIsTemplateModalOpen(true)}
-              className="w-full flex items-center justify-center gap-2 bg-transparent border-none rounded-none p-4 text-white/70 cursor-pointer transition-colors duration-200 text-[9px] tracking-[0.1em]  font-medium hover:bg-white/5 hover:text-white"
+              className="w-full flex items-center justify-center gap-2 bg-white/5 border border-white/5 rounded-xl p-3 text-white/80 cursor-pointer transition-all duration-300 ease-out text-[13px] font-medium hover:bg-white/10 hover:text-white shadow-sm"
             >
-              <Grid size={14} />
-              BROWSE GALLERY
+              <Grid size={16} />
+              Browse Gallery
             </button>
           </AccordionItem>
 
@@ -260,7 +367,7 @@ export const Controls: React.FC = () => {
             <div
               onDrop={handleDrop}
               onDragOver={handleDragOver}
-              className="h-[130px] border border-transparent rounded-none flex flex-col items-center justify-center bg-transparent cursor-pointer transition-colors duration-200 p-3 hover:bg-white/5"
+              className="h-[140px] border border-white/10 rounded-xl flex flex-col items-center justify-center bg-white/[0.02] cursor-pointer transition-all duration-300 p-4 hover:bg-white/5 hover:border-white/20"
               onClick={() =>
                 document.getElementById("sidebar-file-upload")?.click()
               }
@@ -301,17 +408,17 @@ export const Controls: React.FC = () => {
                       }}
                     />
                   )}
-                  <p className="text-[8px] tracking-[0.1em] text-white/40 m-0 font-medium">
-                    CLICK TO REPLACE
+                  <p className="text-[11px] text-white/50 m-0 mt-2 font-medium">
+                    Click to replace
                   </p>
                 </div>
               ) : (
                 <>
-                  <p className="text-[10px] tracking-[0.1em] text-white/50 m-0 mb-1 font-medium">
-                    DROP MEDIA
+                  <p className="text-[13px] text-white/80 m-0 mb-1 font-semibold">
+                    Drop Media
                   </p>
-                  <p className="text-[9px] text-white/25 m-0 tracking-[0.1em]">
-                    IMAGE OR VIDEO
+                  <p className="text-[11px] text-white/40 m-0">
+                    Image or Video
                   </p>
                 </>
               )}
@@ -334,14 +441,14 @@ export const Controls: React.FC = () => {
           >
             <button
               onClick={() => setSourceMode("camera")}
-              className={`w-full flex items-center justify-center gap-2 border-none rounded-none p-4 cursor-pointer transition-colors duration-200 text-[9px] tracking-[0.1em]  font-medium ${
+              className={`w-full flex items-center justify-center gap-2 border rounded-xl p-3 cursor-pointer transition-all duration-300 ease-out text-[13px] font-medium ${
                 sourceMode === "camera"
-                  ? "bg-white/5 text-white"
-                  : "bg-transparent text-white/60 hover:bg-white/5 hover:text-white/80"
+                  ? "bg-white text-black border-white shadow-md"
+                  : "bg-white/5 border-white/5 text-white/80 hover:bg-white/10 hover:text-white shadow-sm"
               }`}
             >
-              <Video size={14} />
-              {sourceMode === "camera" ? "CAMERA ACTIVE" : "START LIVE FEED"}
+              <Video size={16} />
+              {sourceMode === "camera" ? "Camera Active" : "Start Live Feed"}
             </button>
           </AccordionItem>
 
@@ -367,11 +474,10 @@ export const Controls: React.FC = () => {
                   setSourceMode("text");
                 }}
                 onFocus={() => setSourceMode("text")}
-                placeholder="TYPE YOUR TEXT..."
-                className="w-full bg-transparent border-none border-b border-white/10 rounded-none px-4 py-[14px] text-white  text-[12px] tracking-[0.1em] outline-none transition-colors duration-200 font-normal focus:border-white/30 hover:border-white/20"
+                placeholder="Type your text..."
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white text-[13px] outline-none transition-all duration-300 font-medium focus:border-white/30 focus:bg-white/10 hover:border-white/20"
               />
 
-              {/* Font Selection */}
               <div className="grid grid-cols-3 gap-2 mt-1">
                 {[
                   {
@@ -389,10 +495,10 @@ export const Controls: React.FC = () => {
                         setCustomFont(f.key);
                         setSourceMode("text");
                       }}
-                      className={`border rounded-sm py-2 px-1 text-[8px] tracking-[0.1em] cursor-pointer transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                      className={`border rounded-lg py-2 px-1 text-[11px] cursor-pointer transition-all duration-300 ease-out ${
                         isActive
-                          ? "bg-white/10 border-white/15 text-white font-semibold"
-                          : "bg-white/5 border-white/5 text-white/50 font-normal hover:bg-white/10 hover:border-white/10 hover:text-white/70"
+                          ? "bg-white/10 border-white/20 text-white font-semibold shadow-sm"
+                          : "bg-white/5 border-white/5 text-white/60 font-medium hover:bg-white/10 hover:border-white/10 hover:text-white"
                       }`}
                       style={{ fontFamily: f.key }}
                     >
@@ -402,8 +508,8 @@ export const Controls: React.FC = () => {
                 })}
               </div>
 
-              <p className="text-[9px] text-white/25 tracking-[0.1em] m-0 text-center">
-                TEXT WILL RENDER WITH EFFECTS
+              <p className="text-[11px] text-white/40 m-0 mt-1 text-center font-medium">
+                Text renders with effects applied
               </p>
             </div>
           </AccordionItem>
@@ -428,16 +534,33 @@ export const Controls: React.FC = () => {
                   <button
                     key={s.key}
                     onClick={() => setArtStyle(s.key)}
-                    className={`border-none rounded-none py-3 px-1 text-[9px] tracking-[0.1em] cursor-pointer transition-colors duration-200  ${
+                    className={`border rounded-lg py-2.5 px-2 text-[12px] cursor-pointer transition-all duration-300 ease-out ${
                       isActive
-                        ? "bg-white/5 text-white font-semibold"
-                        : "bg-transparent text-white/50 font-normal hover:bg-white/5"
+                        ? "bg-white/10 border-white/20 text-white font-semibold shadow-sm"
+                        : "bg-white/5 border-white/5 text-white/60 font-medium hover:bg-white/10 hover:text-white"
                     }`}
                   >
                     {s.label}
                   </button>
                 );
               })}
+            </div>
+            <div className="mt-4 pt-4 border-t border-white/10">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-[12px] font-semibold text-white/60 uppercase tracking-wider">
+                  Custom Character Set
+                </span>
+              </div>
+              <input
+                type="text"
+                value={customCharacterSet}
+                onChange={(e) => setCustomCharacterSet(e.target.value)}
+                placeholder="e.g. 01 or /\\"
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-[12px] outline-none transition-all duration-300 font-mono focus:border-white/30 hover:border-white/20 mb-1"
+              />
+              <p className="text-[10px] text-white/40 m-0 leading-tight">
+                Characters ordered from dark to light. Clear or leave as default for classic gradient.
+              </p>
             </div>
           </AccordionItem>
 
@@ -461,10 +584,10 @@ export const Controls: React.FC = () => {
                   <button
                     key={s.key}
                     onClick={() => setFxPreset(s.key)}
-                    className={`border-none rounded-none py-3 px-1 text-[9px] tracking-[0.1em] cursor-pointer transition-colors duration-200  ${
+                    className={`border rounded-lg py-2.5 px-2 text-[12px] cursor-pointer transition-all duration-300 ease-out ${
                       isActive
-                        ? "bg-white/5 text-white font-semibold"
-                        : "bg-transparent text-white/50 font-normal hover:bg-white/5"
+                        ? "bg-white/10 border-white/20 text-white font-semibold shadow-sm"
+                        : "bg-white/5 border-white/5 text-white/60 font-medium hover:bg-white/10 hover:text-white"
                     }`}
                   >
                     {s.label}
@@ -553,29 +676,7 @@ export const Controls: React.FC = () => {
                 <button
                   key={preset.label}
                   onClick={preset.apply}
-                  style={{
-                    background: "transparent",
-                    border: "none",
-                    borderRadius: "0px",
-                    padding: "14px 12px",
-                    color: "rgba(255,255,255,0.7)",
-                    fontSize: "9px",
-                    letterSpacing: "0.25em",
-                    cursor: "pointer",
-                    transition: "background 0.2s",
-                    fontFamily:
-                      '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif',
-                    fontWeight: 500,
-                    textAlign: "center",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = "rgba(255,255,255,0.05)";
-                    e.currentTarget.style.color = "#FFF";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = "transparent";
-                    e.currentTarget.style.color = "rgba(255,255,255,0.7)";
-                  }}
+                  className="bg-white/5 border border-white/5 rounded-xl p-3 text-white/70 text-[12px] font-medium cursor-pointer transition-all duration-300 ease-out hover:bg-white/10 hover:text-white shadow-sm"
                 >
                   {preset.label}
                 </button>
@@ -609,8 +710,15 @@ export const Controls: React.FC = () => {
                 step={1}
                 onChange={setResolution}
               />
+              <SliderControl
+                label="FONT SCALE"
+                value={fontScale}
+                min={0.1}
+                max={3.0}
+                step={0.01}
+                onChange={setFontScale}
+              />
 
-              {/* BG COLOR PRESETS */}
               <div>
                 <div
                   style={{
@@ -619,19 +727,11 @@ export const Controls: React.FC = () => {
                     marginBottom: "10px",
                   }}
                 >
-                  <span
-                    style={{
-                      fontSize: "10px",
-                      fontWeight: 600,
-                      letterSpacing: "0.15em",
-                      color: "rgba(255,255,255,0.6)",
-                    }}
-                  >
-                    BG COLOR
+                  <span className="text-[12px] font-semibold text-white/60 uppercase tracking-wider">
+                    Background Color
                   </span>
                 </div>
                 <div className="grid grid-cols-[repeat(7,1fr)] gap-[6px]">
-                  {/* Custom Color Picker */}
                   <div className="relative w-full aspect-square">
                     <input
                       type="color"
@@ -653,12 +753,12 @@ export const Controls: React.FC = () => {
                     </div>
                   </div>
                   {[
-                    "#000000", // Black
-                    "#120A05", // Deep Brown
-                    "#0A1220", // Deep Navy
-                    "#1A0D16", // Deep Plum
-                    "#08140F", // Deep Forest
-                    "#FFFFFF", // White
+                    "#000000",
+                    "#120A05",
+                    "#0A1220",
+                    "#1A0D16",
+                    "#08140F",
+                    "#FFFFFF",
                   ].map((color) => {
                     const isActive = backgroundColor === color;
                     return (
@@ -741,64 +841,180 @@ export const Controls: React.FC = () => {
                 step={0.01}
                 onChange={setDithering}
               />
+              <SliderControl
+                label="VIGNETTE"
+                value={vignette}
+                min={0}
+                max={1}
+                step={0.01}
+                onChange={setVignette}
+              />
 
-              <div className="flex justify-between items-center mt-2 pt-[14px] border-t border-white/5">
-                <span className="text-[9px] tracking-[0.1em] text-white/50 font-medium">
-                  COLOR MODE
+              <div className="flex flex-col gap-3 mt-2 pt-4 border-t border-white/10">
+                <div className="flex justify-between items-center">
+                  <span className="text-[12px] font-medium text-white/70">
+                    Background Dither
+                  </span>
+                  <button
+                    onClick={() => setBgDither(!bgDither)}
+                    className={`border rounded-lg py-1 px-3 text-[11px] font-medium transition-all duration-300 ease-out cursor-pointer ${
+                      bgDither
+                        ? "bg-white text-black border-white shadow-sm"
+                        : "bg-white/5 border-white/5 text-white/60 hover:bg-white/10 hover:text-white"
+                    }`}
+                  >
+                    {bgDither ? "On" : "Off"}
+                  </button>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-[12px] font-medium text-white/70">
+                    Inverse Dither
+                  </span>
+                  <button
+                    onClick={() => setInverseDither(!inverseDither)}
+                    className={`border rounded-lg py-1 px-3 text-[11px] font-medium transition-all duration-300 ease-out cursor-pointer ${
+                      inverseDither
+                        ? "bg-white text-black border-white shadow-sm"
+                        : "bg-white/5 border-white/5 text-white/60 hover:bg-white/10 hover:text-white"
+                    }`}
+                  >
+                    {inverseDither ? "On" : "Off"}
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex justify-between items-center mt-2 pt-4 border-t border-white/10">
+                <span className="text-[12px] font-medium text-white/70">
+                  Color Mode
                 </span>
                 <button
                   onClick={() => setColorMode(!colorMode)}
-                  className={`border-none rounded-none py-[6px] px-[14px] text-[8px] tracking-[0.1em] cursor-pointer  font-medium transition-colors duration-200 ${
+                  className={`border rounded-lg py-1.5 px-4 text-[12px] font-medium transition-all duration-300 ease-out cursor-pointer ${
                     colorMode
-                      ? "bg-white/5 text-white"
-                      : "bg-transparent text-white/50 hover:bg-white/5 hover:text-white/70"
+                      ? "bg-white text-black border-white shadow-sm"
+                      : "bg-white/5 border-white/5 text-white/60 hover:bg-white/10 hover:text-white"
                   }`}
                 >
-                  {colorMode ? "ON" : "OFF"}
+                  {colorMode ? "On" : "Off"}
+                </button>
+              </div>
+
+              <div className="flex justify-between items-center mt-2 pt-4 border-t border-white/10">
+                <span className="text-[12px] font-medium text-white/70">
+                  Bottom Bar
+                </span>
+                <button
+                  onClick={() => setBottomBarVisible(!bottomBarVisible)}
+                  className={`border rounded-lg py-1.5 px-4 text-[12px] font-medium transition-all duration-300 ease-out cursor-pointer ${
+                    bottomBarVisible
+                      ? "bg-white text-black border-white shadow-sm"
+                      : "bg-white/5 border-white/5 text-white/60 hover:bg-white/10 hover:text-white"
+                  }`}
+                >
+                  {bottomBarVisible ? "Visible" : "Hidden"}
                 </button>
               </div>
             </div>
           </AccordionItem>
+
+          <AccordionItem
+            title="EXPORT SETTINGS"
+            id="export"
+            openSection={openSection}
+            setOpenSection={setOpenSection}
+            sourceMode={sourceMode}
+          >
+            <div className="flex flex-col gap-5">
+              <div>
+                <span className="text-[12px] font-semibold text-white/60 uppercase tracking-wider block mb-3">
+                  Format
+                </span>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { key: "png", label: "Image (PNG)" },
+                    { key: "mp4", label: "Video (MP4)" },
+                    { key: "gif", label: "Animation (GIF)" },
+                    { key: "webgl", label: "WebGL Code" },
+                  ].map((fmt) => (
+                    <button
+                      key={fmt.key}
+                      onClick={() => setExportFormat(fmt.key as any)}
+                      className={`border rounded-lg py-2.5 px-2 text-[12px] cursor-pointer transition-all duration-300 ease-out ${
+                        exportFormat === fmt.key
+                          ? "bg-white/10 border-white/20 text-white font-semibold shadow-sm"
+                          : "bg-white/5 border-white/5 text-white/60 font-medium hover:bg-white/10 hover:text-white"
+                      }`}
+                    >
+                      {fmt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <span className="text-[12px] font-semibold text-white/60 uppercase tracking-wider block mb-3">
+                  Quality
+                </span>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { value: 1.0, label: "Standard (1x)" },
+                    { value: 2.0, label: "High (2x)" },
+                    { value: 4.0, label: "Ultra (4x)" },
+                  ].map((q) => (
+                    <button
+                      key={q.value}
+                      onClick={() => setExportQuality(q.value)}
+                      className={`border rounded-lg py-2 px-1 text-[11px] cursor-pointer transition-all duration-300 ease-out text-center ${
+                        exportQuality === q.value
+                          ? "bg-white/10 border-white/20 text-white font-semibold shadow-sm"
+                          : "bg-white/5 border-white/5 text-white/60 font-medium hover:bg-white/10 hover:text-white"
+                      }`}
+                    >
+                      {q.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <p className="text-[10px] text-white/40 m-0 leading-tight">
+                High/Ultra quality temporarily scales the renderer during PNG captures and increases bitrates for videos. Video recording and GIF creation may perform poorly on 4x.
+              </p>
+            </div>
+          </AccordionItem>
         </div>
 
-        {/* Bottom actions fixed at bottom of sidebar */}
-        <div className="absolute bottom-0 left-0 right-0 h-[100px] px-10 flex flex-col justify-center bg-transparent backdrop-blur-[40px] z-50">
-          <div className="flex gap-2 w-full relative top-[-6px]">
-            {/* Primary CTA */}
+        <div className="absolute bottom-0 left-0 right-0 h-[100px] px-8 flex flex-col justify-center bg-black/40 backdrop-blur-2xl border-t border-white/5 z-50">
+          <div className="flex gap-3 w-full">
             <button
               onClick={handleRandomize}
-              className="flex-1 bg-white border-none rounded-none text-black text-[9px]  font-semibold tracking-[0.2em] uppercase h-[38px] cursor-pointer transition-all duration-200 hover:bg-[#E6E6E6] hover:scale-[0.98]"
+              className="flex-1 bg-white/10 border border-white/10 rounded-xl text-white text-[13px] font-medium h-[44px] cursor-pointer transition-all duration-300 hover:bg-white/15 active:scale-[0.98] shadow-sm"
             >
-              RANDOM
+              Randomize
             </button>
-            {/* Secondary CTA */}
             <button
               onClick={handleExport}
-              className={`flex-1 rounded-none text-[9px]  font-medium tracking-[0.2em] uppercase h-[38px] cursor-pointer transition-all duration-500 flex items-center justify-center gap-2 border ${
-                isRecording
-                  ? "bg-[#ff3232]/10 border-[#ff3232]/40 text-[#ffb3b3]"
-                  : "bg-transparent border-transparent text-white/60 hover:bg-white/5 hover:border-white/30 hover:text-white/90"
+              className={`flex-1 rounded-xl text-[13px] font-medium h-[44px] cursor-pointer transition-all duration-300 flex items-center justify-center gap-2 shadow-sm ${
+                isRecording || exportFormat === 'png' || exportFormat === 'webgl'
+                  ? exportFormat === 'png' || exportFormat === 'webgl'
+                    ? "bg-white text-black border border-white hover:bg-gray-200"
+                    : "bg-red-500/20 text-red-400 border border-red-500/30"
+                  : "bg-white text-black border border-white hover:bg-gray-100 active:scale-[0.98]"
               }`}
             >
               {isRecording ? (
                 <>
-                  <span className="w-2 h-2 rounded-full bg-[#ff4444] animate-pulse" />
-                  STOP
+                  <span className="w-2 h-2 rounded-full bg-red-500 animate-[pulse_1.5s_ease-in-out_infinite]" />
+                  Stop Recording
                 </>
+              ) : exportFormat === "png" ? (
+                "Save Image"
+              ) : exportFormat === "webgl" ? (
+                 "Download Code"
               ) : (
-                "EXPORT GIF"
+                `Record ${exportFormat.toUpperCase()}`
               )}
             </button>
           </div>
-          {/* CSS Animation for the recording pulse */}
-          <style>{`
-              @keyframes pulse {
-                0% { opacity: 1; transform: scale(1); }
-                50% { opacity: 0.5; transform: scale(0.8); }
-                100% { opacity: 1; transform: scale(1); }
-              }
-            `}</style>
-          <div className="absolute bottom-4 left-0 right-0 text-center text-[8px] text-white/20 tracking-[0.1em] font-normal pointer-events-none">
+          <div className="absolute bottom-2 left-0 right-0 text-center text-[8px] text-white/20 tracking-[0.1em] font-normal pointer-events-none">
             © SONDER {new Date().getFullYear()}
           </div>
         </div>
@@ -807,8 +1023,6 @@ export const Controls: React.FC = () => {
     </>
   );
 };
-
-// ─── Shared UI parts ───
 
 const SliderControl: React.FC<{
   label: string;
@@ -819,14 +1033,9 @@ const SliderControl: React.FC<{
   onChange: (val: number) => void;
 }> = ({ label, value, min, max, step, onChange }) => (
   <div>
-    <div className="flex justify-between items-center mb-2">
-      <span className="text-[9px] tracking-[0.1em] text-white/45 uppercase font-medium">
-        {label}
-      </span>
-      <span
-        className="text-[9px] font-mono font-normal"
-        style={{ color: ACCENT_70 }}
-      >
+    <div className="flex justify-between items-center mb-3">
+      <span className="text-[12px] text-white/70 font-medium">{label}</span>
+      <span className="text-[12px] font-medium" style={{ color: ACCENT_70 }}>
         {Number.isInteger(step) ? value : value.toFixed(2)}
       </span>
     </div>
@@ -859,7 +1068,6 @@ const AccordionItem = ({
 }) => {
   const isOpen = openSection === id;
 
-  // For scenes, templates, image we highlight title if it's the active sourceMode
   const isSourceActive =
     (id === "gallery" &&
       (sourceMode === "scenes" || sourceMode === "templates")) ||
@@ -869,16 +1077,15 @@ const AccordionItem = ({
 
   return (
     <div className="border-b border-white/5 relative">
-      {/* Active left accent bar */}
       {isSourceActive && (
         <div className="absolute -left-5 top-2 bottom-2 w-[1px] rounded-[1px] bg-white/80 shadow-[0_0_8px_rgba(255,255,255,0.4)]" />
       )}
       <button
         onClick={() => setOpenSection(isOpen ? "" : id)}
-        className={`w-full flex justify-between items-center bg-transparent border-none py-[18px] text-[10px] tracking-[0.2em] font-medium cursor-pointer  transition-colors duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] uppercase outline-none ${
+        className={`w-full flex justify-between items-center bg-transparent border-none py-[20px] text-[14px] font-semibold cursor-pointer transition-colors duration-300 ease-out outline-none ${
           isOpen || isSourceActive
-            ? "text-white/95"
-            : "text-white/40 hover:text-white/70"
+            ? "text-white"
+            : "text-white/60 hover:text-white/80"
         }`}
       >
         <span>{title}</span>

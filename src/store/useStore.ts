@@ -1,84 +1,70 @@
 import { create } from 'zustand';
 
-export type ArtStyle = 'classic';
+export type ArtStyle = 'classic' | 'braille' | 'halftone' | 'dot' | 'cross' | 'line' | 'particles' | 'terminal' | 'retro' | 'claude';
 export type FXPreset = 'none' | 'noise' | 'field' | 'intervals' | 'beam sweep' | 'glitch' | 'CRT monitor' | 'matrix rain';
 export type SourceMode = 'scenes' | 'templates' | 'image' | 'video' | 'text' | 'camera';
 export type AspectRatio = 'ORIGINAL' | '16:9' | '4:3' | '1:1' | '3:4' | '9:16';
 
 interface AppState {
-  // Source toggle
+
   sourceMode: SourceMode;
   setSourceMode: (val: SourceMode) => void;
 
-  // Art style
   artStyle: ArtStyle;
   setArtStyle: (val: ArtStyle) => void;
 
-  // FX Preset
   fxPreset: FXPreset;
   setFxPreset: (val: FXPreset) => void;
 
-  // Controller sliders
   brightness: number;
   setBrightness: (val: number) => void;
   contrast: number;
   setContrast: (val: number) => void;
 
-  // Noise & dithering
   noise: number;
   setNoise: (val: number) => void;
   dithering: number;
   setDithering: (val: number) => void;
 
-  // Color mode
   colorMode: boolean;
   setColorMode: (val: boolean) => void;
 
-  // Active scene index (for procedural scenes)
   activeScene: number;
   setActiveScene: (val: number) => void;
 
-  // Resolution (char size)
   resolution: number;
   setResolution: (val: number) => void;
 
-  // Aspect Ratio
   aspectRatio: AspectRatio;
   setAspectRatio: (val: AspectRatio) => void;
 
-  // Template selection
   activeTemplate: string | null;
   setActiveTemplate: (val: string | null) => void;
 
-  // Uploaded image (data URL)
   uploadedImage: string | null;
   setUploadedImage: (val: string | null) => void;
 
-  // Uploaded video (blob URL)
   uploadedVideo: string | null;
   setUploadedVideo: (val: string | null) => void;
 
-  // Controls panel visibility
   controlsVisible: boolean;
   setControlsVisible: (val: boolean) => void;
 
-  // Template Modal visibility
+  bottomBarVisible: boolean;
+  setBottomBarVisible: (val: boolean) => void;
+
   isTemplateModalOpen: boolean;
   setIsTemplateModalOpen: (val: boolean) => void;
 
-  // Custom text input
   customText: string;
   setCustomText: (val: string) => void;
 
-  // Custom font selection
   customFont: string;
   setCustomFont: (val: string) => void;
 
-  // Background color
   backgroundColor: string;
   setBackgroundColor: (val: string) => void;
 
-  // Dual-Layer Settings
   asciiOpacity: number;
   setAsciiOpacity: (val: number) => void;
   asciiDensity: number;
@@ -88,9 +74,24 @@ interface AppState {
   characterRamp: number;
   setCharacterRamp: (val: number) => void;
 
-  // Post-processing
   bloomStrength: number;
   setBloomStrength: (val: number) => void;
+
+  customCharacterSet: string;
+  setCustomCharacterSet: (val: string) => void;
+  fontScale: number;
+  setFontScale: (val: number) => void;
+  bgDither: boolean;
+  setBgDither: (val: boolean) => void;
+  inverseDither: boolean;
+  setInverseDither: (val: boolean) => void;
+  vignette: number;
+  setVignette: (val: number) => void;
+
+  exportFormat: 'gif' | 'mp4' | 'png' | 'webgl';
+  setExportFormat: (val: 'gif' | 'mp4' | 'png' | 'webgl') => void;
+  exportQuality: number;
+  setExportQuality: (val: number) => void;
 }
 
 export const useStore = create<AppState>((set) => ({
@@ -135,6 +136,9 @@ export const useStore = create<AppState>((set) => ({
   controlsVisible: true,
   setControlsVisible: (val) => set({ controlsVisible: val }),
 
+  bottomBarVisible: true,
+  setBottomBarVisible: (val) => set({ bottomBarVisible: val }),
+
   isTemplateModalOpen: false,
   setIsTemplateModalOpen: (val) => set({ isTemplateModalOpen: val }),
 
@@ -155,7 +159,23 @@ export const useStore = create<AppState>((set) => ({
   setImageVisibility: (val) => set({ imageVisibility: val }),
   characterRamp: 1.0,
   setCharacterRamp: (val) => set({ characterRamp: val }),
-  
-  bloomStrength: 0.5, // Default glowing effect
+
+  bloomStrength: 0.5,
   setBloomStrength: (val) => set({ bloomStrength: val }),
+
+  customCharacterSet: "@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\\|()1{}[]?-_+~<>i!lI;:,\"^`'. ",
+  setCustomCharacterSet: (val) => set({ customCharacterSet: val }),
+  fontScale: 1.0,
+  setFontScale: (val) => set({ fontScale: val }),
+  bgDither: false,
+  setBgDither: (val) => set({ bgDither: val }),
+  inverseDither: false,
+  setInverseDither: (val) => set({ inverseDither: val }),
+  vignette: 0.0,
+  setVignette: (val) => set({ vignette: val }),
+
+  exportFormat: 'gif',
+  setExportFormat: (val) => set({ exportFormat: val }),
+  exportQuality: 1.0,
+  setExportQuality: (val) => set({ exportQuality: val }),
 }));

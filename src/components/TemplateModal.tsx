@@ -5,7 +5,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Search } from "lucide-react";
 import { useStore } from "../store/useStore";
 
-/* ─── Black & White palette ─── */
 const ACCENT = "rgba(255, 255, 255, 0.9)";
 const ACCENT_70 = "rgba(255, 255, 255, 0.6)";
 const ACCENT_40 = "rgba(255, 255, 255, 0.30)";
@@ -21,7 +20,7 @@ interface GalleryItem {
 }
 
 const GALLERY_ITEMS: GalleryItem[] = [
-  // Scenes
+
   {
     id: "scene-sculpture",
     emoji: "🗿",
@@ -134,19 +133,19 @@ const GALLERY_ITEMS: GalleryItem[] = [
     category: "scenes",
     sceneIndex: 15,
   },
-  // Emojis / Templates
-  { id: "cat", emoji: "🐱", label: "Cat", category: "emojis" },
-  { id: "dog", emoji: "🐶", label: "Dog", category: "emojis" },
-  { id: "tree", emoji: "🌳", label: "Tree", category: "emojis" },
-  { id: "fish", emoji: "🐟", label: "Fish", category: "emojis" },
-  { id: "flower", emoji: "🌸", label: "Flower", category: "emojis" },
-  { id: "skull", emoji: "💀", label: "Skull", category: "emojis" },
-  { id: "sword", emoji: "🗡️", label: "Sword", category: "emojis" },
-  { id: "shield", emoji: "🛡️", label: "Shield", category: "emojis" },
-  { id: "car", emoji: "🚗", label: "Car", category: "emojis" },
-  { id: "robot", emoji: "🤖", label: "Robot", category: "emojis" },
-  { id: "apple", emoji: "🍎", label: "Apple", category: "emojis" },
-  { id: "coffee", emoji: "☕", label: "Coffee", category: "emojis" },
+
+  { id: "laugh", emoji: "😂", label: "Laugh", category: "emojis" },
+  { id: "heart", emoji: "❤️", label: "Heart", category: "emojis" },
+  { id: "rofl", emoji: "🤣", label: "ROFL", category: "emojis" },
+  { id: "thumbs_up", emoji: "👍", label: "Thumbs Up", category: "emojis" },
+  { id: "cry", emoji: "😭", label: "Cry", category: "emojis" },
+  { id: "pray", emoji: "🙏", label: "Pray", category: "emojis" },
+  { id: "kiss", emoji: "😘", label: "Kiss", category: "emojis" },
+  { id: "hearts", emoji: "🥰", label: "Hearts", category: "emojis" },
+  { id: "heart_eyes", emoji: "😍", label: "Heart Eyes", category: "emojis" },
+  { id: "smile", emoji: "😊", label: "Smile", category: "emojis" },
+  { id: "fire", emoji: "🔥", label: "Fire", category: "emojis" },
+  { id: "sparkles", emoji: "✨", label: "Sparkles", category: "emojis" },
 ];
 
 export const TemplateModal: React.FC = () => {
@@ -215,40 +214,38 @@ export const TemplateModal: React.FC = () => {
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.98 }}
             transition={{ type: "spring", damping: 30, stiffness: 200 }}
-            className="w-full h-full max-w-[1400px] bg-[#040404]/80 border border-white/10 shadow-2xl rounded-2xl py-[60px] px-[80px] flex flex-col overflow-hidden box-border"
+            className="w-full h-full max-w-[1200px] max-h-[85vh] bg-[#1c1c1e]/80 backdrop-blur-3xl border border-white/10 shadow-2xl rounded-3xl py-10 px-12 flex flex-col overflow-hidden box-border"
           >
-            {/* Header */}
-            <div className="flex items-center justify-between mb-10">
+            <div className="flex items-center justify-between mb-8">
               <div>
-                <h2 className="m-0 text-[48px] font-medium text-white ">
+                <h2 className="m-0 text-[36px] font-semibold text-white tracking-tight">
                   Gallery
                 </h2>
-                <p className="pl-1 mt-2 mb-0 text-[12px] text-white/40 font-normal ">
+                <p className="mt-1 mb-0 text-[14px] text-white/50 font-medium tracking-wide">
                   Choose a Visual Essence
                 </p>
               </div>
 
               <button
                 onClick={() => setIsTemplateModalOpen(false)}
-                className="bg-transparent border-none rounded-none w-[38px] h-[38px] flex items-center justify-center text-white/50 cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] hover:text-white hover:scale-90"
+                className="bg-white/5 border border-white/5 rounded-full w-[44px] h-[44px] flex items-center justify-center text-white/70 cursor-pointer transition-all duration-300 ease-out hover:bg-white/10 hover:text-white hover:scale-105 shadow-sm"
               >
-                <X size={18} />
+                <X size={20} />
               </button>
             </div>
 
-            {/* Toolbar */}
-            <div className="flex items-center gap-4 py-4 px-8">
-              <div className="flex-1 relative flex items-center">
+            <div className="flex items-center gap-6 py-4 px-2 mb-4">
+              <div className="w-[300px] relative flex items-center">
                 <Search
                   size={16}
-                  className="absolute left-0 text-white/35"
+                  className="absolute left-4 text-white/40"
                 />
                 <input
                   type="text"
-                  placeholder="SEARCH..."
+                  placeholder="Search templates..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="w-full bg-transparent border-none border-b border-white/10 rounded-none py-3 pr-4 pl-8 text-white  text-[12px] tracking-[0.1em] outline-none transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] font-normal focus:border-white/40"
+                  className="w-full bg-black/40 border border-white/10 rounded-full py-2.5 pr-4 pl-10 text-white text-[14px] outline-none transition-all duration-300 font-medium focus:border-white/30 focus:bg-black/60 shadow-inner"
                 />
               </div>
 
@@ -259,10 +256,10 @@ export const TemplateModal: React.FC = () => {
                     <button
                       key={cat}
                       onClick={() => setActiveCategory(cat)}
-                      className={`bg-transparent border-none border-b rounded-none py-2 px-1 text-[10px] tracking-[0.2em] uppercase cursor-pointer whitespace-nowrap transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]  ${
+                      className={`py-1.5 px-4 text-[13px] font-medium capitalize rounded-full cursor-pointer whitespace-nowrap transition-all duration-300 ease-out border ${
                         isActive
-                          ? "border-white text-white font-medium"
-                          : "border-transparent text-white/40 font-normal hover:text-white/70"
+                          ? "bg-white text-black border-white shadow-sm"
+                          : "bg-transparent border-transparent text-white/60 hover:text-white hover:bg-white/5"
                       }`}
                     >
                       {cat}
@@ -272,11 +269,10 @@ export const TemplateModal: React.FC = () => {
               </div>
             </div>
 
-            {/* Grid */}
-            <div className="flex-1 overflow-y-auto p-8 grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-4 content-start">
+            <div className="flex-1 overflow-y-auto p-4 lg:p-6 grid grid-cols-[repeat(auto-fill,minmax(130px,1fr))] gap-4 content-start">
               {filteredItems.length === 0 ? (
-                <div className="col-[1/-1] text-center py-[60px] text-white/25 text-[11px] tracking-[0.1em] font-normal uppercase">
-                  NO ITEMS FOUND
+                <div className="col-[1/-1] text-center py-[60px] text-white/40 text-[14px] font-medium">
+                  No items found
                 </div>
               ) : (
                 filteredItems.map((t) => {
@@ -285,27 +281,28 @@ export const TemplateModal: React.FC = () => {
                     <button
                       key={t.id}
                       onClick={() => handleSelect(t)}
-                      className={`border-none rounded-none py-8 px-4 flex flex-col items-center gap-4 cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]  ${
+                      className={`border border-transparent rounded-2xl py-6 px-4 flex flex-col items-center gap-3 cursor-pointer transition-all duration-300 ease-out  ${
                         isActive
-                          ? "bg-white/[0.03]"
-                          : "bg-transparent hover:bg-white/[0.01] hover:-translate-y-[2px]"
+                          ? "bg-white/10 border-white/20 shadow-md transform scale-[1.02]"
+                          : "bg-black/20 hover:bg-white/5 hover:border-white/10 hover:-translate-y-1"
                       }`}
                     >
                       <span
-                        className="text-[48px] leading-none transition-all duration-500"
+                        className="text-[42px] leading-none transition-all duration-300"
                         style={{
                           filter: isActive
-                            ? `drop-shadow(0 0 12px rgba(255,255,255,0.8))`
-                            : "grayscale(40%) opacity(70%)",
+                            ? `drop-shadow(0 4px 12px rgba(255,255,255,0.4))`
+                            : "drop-shadow(0 2px 4px rgba(0,0,0,0.5))",
+                          opacity: isActive ? 1 : 0.8,
                         }}
                       >
                         {t.emoji}
                       </span>
                       <span
-                        className={`text-[10px] tracking-[0.1em] uppercase ${
+                        className={`text-[12px] font-medium ${
                           isActive
-                            ? "text-white font-medium"
-                            : "text-white/50 font-normal"
+                            ? "text-white"
+                            : "text-white/60"
                         }`}
                       >
                         {t.label}
